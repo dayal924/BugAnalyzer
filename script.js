@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * CONFIGURATION (DO NOT CHANGE)
    * ======================================================= */
   const API_URL = "/api/analyze";
-  const REPORT_ROUTE = "/analyze";
+  const REPORT_ROUTE = "analyze.html";
 
   /* =======================================================
    * SAFE STATIC COLOR MAP (Tailwind Compatible)
