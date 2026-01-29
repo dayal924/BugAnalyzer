@@ -1,99 +1,104 @@
 /**
  * =========================================================
- * BugAnalyzer – Frontend Controller (FINAL & STABLE)
+ * BugSense – Stabilized Frontend Controller (FINAL)
  * =========================================================
- * Fixes:
- * - Stops Icon Flickering (Optimized feather.replace)
- * - Stabilizes Editor Scrolling
- * - Prevents Layout Shifts during Analysis
+ * - Uses requestAnimationFrame for scroll syncing (No Jitter)
+ * - Prevents Layout Thrashing
+ * - Vercel-safe Backend Connections
  */
 
 document.addEventListener("DOMContentLoaded", () => {
 
-    // ==========================================
-    // 1. CONFIGURATION
-    // ==========================================
-    const API_URL = "/api/analyze"; 
-    const REPORT_ROUTE = "/analyze"; 
+    /* =======================================================
+     * CONFIGURATION
+     * ======================================================= */
+    const API_URL = "/api/analyze";
+    const REPORT_ROUTE = "/analyze"; // Matches Vercel rewrite
 
-    // ==========================================
-    // 2. THEME CONFIGURATION
-    // ==========================================
+    /* =======================================================
+     * DOM ELEMENTS
+     * ======================================================= */
+    const codeInput = document.getElementById("code-input");
+    const lineNumbers = document.getElementById("line-numbers");
+    const analyzeBtn = document.getElementById("analyze-btn");
+    const analyzeSpinner = document.getElementById("analyze-spinner");
+    const btnText = document.getElementById("analyze-text") || document.getElementById("btn-text");
+    const langSelect = document.getElementById("language-select");
+    const uploadBtn = document.getElementById("upload-btn");
+    const fileInput = document.getElementById("file-input");
+    const riskBanner = document.getElementById("risk-banner");
+    const findingsContainer = document.getElementById("issues-list") || document.getElementById("findings-container");
+
+    /* =======================================================
+     * THEME MAPPING (Safe for Tailwind JIT)
+     * ======================================================= */
     const THEMES = {
         safe: {
-            color: 'emerald',
-            text: 'text-emerald-600 dark:text-emerald-400',
             bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+            text: 'text-emerald-600 dark:text-emerald-400',
             border: 'border-emerald-200 dark:border-emerald-800',
             progress: 'bg-emerald-500',
             icon: 'check-circle'
         },
         warning: {
-            color: 'orange',
-            text: 'text-orange-600 dark:text-orange-400',
             bg: 'bg-orange-100 dark:bg-orange-900/30',
+            text: 'text-orange-600 dark:text-orange-400',
             border: 'border-orange-200 dark:border-orange-800',
             progress: 'bg-orange-500',
             icon: 'alert-triangle'
         },
         critical: {
-            color: 'red',
-            text: 'text-red-600 dark:text-red-400',
             bg: 'bg-red-100 dark:bg-red-900/30',
+            text: 'text-red-600 dark:text-red-400',
             border: 'border-red-200 dark:border-red-800',
             progress: 'bg-red-500',
             icon: 'slash'
         }
     };
 
-    // ==========================================
-    // 3. DOM ELEMENTS
-    // ==========================================
-    const codeInput = document.getElementById("code-input");
-    const lineNumbers = document.getElementById("line-numbers");
-    const analyzeBtn = document.getElementById("analyze-btn");
-    const analyzeSpinner = document.getElementById("analyze-spinner");
-    const btnText = document.getElementById("analyze-text");
-    const langSelect = document.getElementById("language-select");
-    const uploadBtn = document.getElementById("upload-btn");
-    const fileInput = document.getElementById("file-input");
-    const riskBanner = document.getElementById("risk-banner");
-    const findingsContainer = document.getElementById("issues-list");
+    /* =======================================================
+     * PAGE 1: EDITOR ENGINE (Anti-Flicker Logic)
+     * ======================================================= */
+    if (codeInput && lineNumbers) {
+        console.log("BugSense: Editor Engine Started");
 
-    // ==========================================
-    // 4. EDITOR LOGIC (Home Page)
-    // ==========================================
-    if (codeInput) {
-        console.log("BugAnalyzer: Editor Ready");
+        // --- A. THE SCROLL LOOP (The Fix) ---
+        // Instead of reacting to scroll events directly, we sync on every animation frame.
+        // This locks the two panels together perfectly.
+        let lastScrollTop = -1;
+        
+        const syncLoop = () => {
+            const scrollTop = codeInput.scrollTop;
+            if (lastScrollTop !== scrollTop) {
+                lineNumbers.scrollTop = scrollTop;
+                lastScrollTop = scrollTop;
+            }
+            requestAnimationFrame(syncLoop);
+        };
+        requestAnimationFrame(syncLoop);
 
-        // --- Optimized Line Numbers (Prevents layout thrashing) ---
+        // --- B. LINE NUMBER GENERATION ---
         const updateLineNumbers = () => {
             const lines = codeInput.value.split("\n").length;
-            const currentLines = lineNumbers.childElementCount;
+            const currentCount = lineNumbers.childElementCount;
 
-            // Only update DOM if line count actually changed
-            if (lines !== currentLines) {
-                lineNumbers.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join("<br>");
+            // Only touch DOM if line count changes (Prevents layout thrashing)
+            if (lines !== currentCount) {
+                // Using Array.join is faster than a loop
+                lineNumbers.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('<br>');
             }
         };
 
-        // Sync Scroll (High Performance)
-        codeInput.addEventListener("scroll", () => {
-            lineNumbers.scrollTop = codeInput.scrollTop;
-        }, { passive: true });
-
-        // Sync Input
         codeInput.addEventListener("input", updateLineNumbers);
         
-        // Initial Draw
+        // Initial Render
         updateLineNumbers();
 
-        // --- Smart Paste ---
+        // --- C. SMART PASTE ---
         codeInput.addEventListener("paste", (e) => {
             e.preventDefault();
             const text = (e.clipboardData || window.clipboardData).getData("text");
-            // Normalize content to prevent jumpiness
-            const cleanText = text.replace(/\r\n/g, "\n");
+            const cleanText = text.replace(/\r\n/g, "\n"); // Normalize line endings
             
             const start = codeInput.selectionStart;
             const end = codeInput.selectionEnd;
@@ -105,17 +110,18 @@ document.addEventListener("DOMContentLoaded", () => {
             updateLineNumbers();
         });
 
-        // --- File Upload ---
+        // --- D. FILE UPLOAD ---
         if (uploadBtn && fileInput) {
             uploadBtn.addEventListener("click", (e) => {
-                e.preventDefault(); // Stop any default button flashing
+                e.preventDefault();
                 fileInput.click();
             });
-            
+
             fileInput.addEventListener("change", (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
 
+                // Auto-detect language
                 const ext = file.name.split(".").pop().toLowerCase();
                 const map = { py: "python", js: "javascript", java: "java", cpp: "cpp", c: "cpp" };
                 if (langSelect && map[ext]) langSelect.value = map[ext];
@@ -129,10 +135,10 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // --- Analyze Action ---
+        // --- E. ANALYZE ACTION ---
         if (analyzeBtn) {
             analyzeBtn.addEventListener("click", async (e) => {
-                e.preventDefault(); // Critical: prevents form submit refresh
+                e.preventDefault(); // Stop page reload
                 
                 const code = codeInput.value.trim();
                 if (!code) {
@@ -142,9 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Lock UI
                 analyzeBtn.disabled = true;
-                analyzeBtn.classList.add("opacity-75", "cursor-wait");
-                if (btnText) btnText.textContent = "Analyzing...";
-                if (analyzeSpinner) analyzeSpinner.classList.remove("hidden");
+                if(analyzeBtn.classList) analyzeBtn.classList.add("opacity-75", "cursor-wait");
+                if(btnText) btnText.textContent = "Analyzing...";
+                if(analyzeSpinner) analyzeSpinner.classList.remove("hidden");
 
                 try {
                     const res = await fetch(API_URL, {
@@ -156,105 +162,101 @@ document.addEventListener("DOMContentLoaded", () => {
                         })
                     });
 
-                    if (!res.ok) throw new Error("Analysis failed");
+                    if (!res.ok) throw new Error("Backend Error");
 
                     const data = await res.json();
-                    localStorage.setItem("bugAnalyzerResults", JSON.stringify(data));
+                    localStorage.setItem("bugSenseResults", JSON.stringify(data));
                     
-                    // Smooth Redirect
+                    // Redirect
                     window.location.href = REPORT_ROUTE;
 
                 } catch (err) {
                     console.error(err);
-                    alert("Connection failed. Check your backend.");
+                    alert("Connection failed. Check backend.");
                     
                     // Reset UI
                     analyzeBtn.disabled = false;
-                    analyzeBtn.classList.remove("opacity-75", "cursor-wait");
-                    if (btnText) btnText.textContent = "Run Prediction Agent";
-                    if (analyzeSpinner) analyzeSpinner.classList.add("hidden");
+                    if(analyzeBtn.classList) analyzeBtn.classList.remove("opacity-75", "cursor-wait");
+                    if(btnText) btnText.textContent = "Run Prediction Agent";
+                    if(analyzeSpinner) analyzeSpinner.classList.add("hidden");
                 }
             });
         }
     }
 
-    // ==========================================
-    // 5. REPORT LOGIC (Analysis Page)
-    // ==========================================
+    /* =======================================================
+     * PAGE 2: REPORT RENDERING
+     * ======================================================= */
     if (riskBanner) {
-        console.log("BugAnalyzer: Report Ready");
+        console.log("BugSense: Report Mode Active");
 
-        const rawData = localStorage.getItem("bugAnalyzerResults");
+        const rawData = localStorage.getItem("bugSenseResults");
         if (!rawData) {
             window.location.href = "/";
             return;
         }
-        const data = JSON.parse(rawData);
 
-        // Theme Selection
+        const data = JSON.parse(rawData);
         const score = data.risk_score || 0;
+        
+        // Determine Theme
         let themeKey = 'safe';
         if (score >= 70) themeKey = 'critical';
         else if (score >= 30) themeKey = 'warning';
         const theme = THEMES[themeKey];
 
-        // Update Header Elements
+        // --- Update Banner ---
         const elLevel = document.getElementById("risk-level");
         const elPercent = document.getElementById("risk-percentage");
         const elIcon = document.getElementById("risk-icon");
         const elProgress = document.getElementById("risk-progress");
 
         if (elLevel) {
-            elLevel.textContent = themeKey === 'safe' ? 'Low Risk' : (themeKey === 'critical' ? 'Critical' : 'Warning');
+            elLevel.textContent = themeKey === 'safe' ? 'Safe' : (themeKey === 'warning' ? 'Warning' : 'Critical');
             elLevel.className = `text-3xl font-black italic tracking-tight ${theme.text}`;
         }
-
+        
         if (elPercent) {
             elPercent.textContent = `${score}%`;
             elPercent.className = `text-5xl font-black tracking-tighter ${theme.text}`;
         }
 
         if (elIcon) {
-            // Set class directly instead of repeated replaces
             elIcon.className = `w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner ${theme.bg}`;
             elIcon.innerHTML = `<i data-feather="${theme.icon}" class="w-8 h-8 ${theme.text.split(' ')[0]}"></i>`;
         }
 
         if (elProgress) {
+            // Reset and apply new color
             elProgress.className = `h-full rounded-full transition-all duration-1000 w-0 ${theme.progress}`;
             setTimeout(() => elProgress.style.width = `${score}%`, 100);
         }
 
-        // Update Metrics
+        // --- Update Metrics ---
         document.getElementById("metric-loc").textContent = data.loc || 0;
         document.getElementById("metric-loops").textContent = data.loops || 0;
         document.getElementById("metric-complexity").textContent = data.complexity || 0;
 
-        // Render List
+        // --- Render Issues ---
         if (findingsContainer) {
             findingsContainer.innerHTML = "";
             
             if (!data.issues || data.issues.length === 0) {
-                findingsContainer.innerHTML = `
-                    <div class="text-center py-12">
-                        <div class="inline-flex p-4 rounded-full bg-emerald-50 dark:bg-emerald-900/20 mb-4">
-                            <i data-feather="check-shield" class="w-8 h-8 text-emerald-500"></i>
-                        </div>
-                        <h3 class="text-lg font-bold">Clean Code</h3>
-                        <p class="text-slate-500">No issues found.</p>
-                    </div>`;
+                findingsContainer.innerHTML = `<div class="p-10 text-center text-slate-400">No vulnerabilities found 🎉</div>`;
             } else {
-                let htmlBuffer = "";
+                let html = "";
                 data.issues.forEach(issue => {
-                    let severityKey = 'safe';
-                    if (issue.severity === 'Critical') severityKey = 'critical';
-                    else if (issue.severity === 'High') severityKey = 'warning';
-                    const itemTheme = THEMES[severityKey];
+                    // Map Issue Severity to Theme
+                    let sKey = 'safe';
+                    if (issue.severity === 'Critical') sKey = 'critical';
+                    else if (issue.severity === 'High') sKey = 'warning';
+                    
+                    const iTheme = THEMES[sKey];
 
-                    htmlBuffer += `
+                    html += `
                     <div class="p-6 border-b border-slate-100 dark:border-slate-800">
                         <div class="flex items-start gap-4">
-                            <span class="px-2 py-1 rounded text-xs font-bold border uppercase ${itemTheme.bg} ${itemTheme.text.split(' ')[0]} ${itemTheme.border}">
+                            <span class="px-2 py-1 rounded text-xs font-bold border uppercase ${iTheme.bg} ${iTheme.text.split(' ')[0]} ${iTheme.border}">
                                 ${issue.severity}
                             </span>
                             <div>
@@ -267,16 +269,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                     </div>`;
                 });
-                findingsContainer.innerHTML = htmlBuffer;
+                findingsContainer.innerHTML = html;
             }
         }
     }
 
-    // ==========================================
-    // 6. GLOBAL INITIALIZATION (Run Once)
-    // ==========================================
-    // Only run feather replace once at the very end to prevent flickering
-    if (window.feather) {
-        window.feather.replace();
-    }
+    // --- Global: Initialize Icons Once ---
+    if (window.feather) window.feather.replace();
 });
