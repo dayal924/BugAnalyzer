@@ -1,5 +1,5 @@
 /* =========================================
-   1. Base & Reset
+   1. Base & Reset (ENHANCED)
    ========================================= */
 :root {
     --primary: #6366f1;   /* Indigo 500 */
@@ -10,12 +10,29 @@ html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    
+    /* FIX 1: Prevent Layout Shifts */
+    /* This reserves space for the scrollbar so the page width doesn't jump */
+    scrollbar-gutter: stable; 
+    
+    /* FIX 2: Prevent horizontal scrolling from scaling animations */
+    overflow-x: hidden; 
+    width: 100%;
+}
+
+body {
+    /* FIX 3: Text Rendering Stabilization */
+    /* Prevents text from becoming blurry/jittery during CSS transforms */
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
 }
 
 /* Custom Text Selection Color */
 ::selection {
     background: rgba(99, 102, 241, 0.3);
     color: inherit;
+    /* FIX 4: Ensure selection doesn't trigger a paint flash */
+    text-shadow: none; 
 }
 
 /* =========================================
@@ -35,6 +52,8 @@ html {
     border-radius: 5px;
     border: 2px solid transparent;
     background-clip: content-box;
+    /* FIX 5: Smoother hover transition for scrollbar */
+    transition: background-color 0.2s ease; 
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -58,6 +77,10 @@ html {
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     font-size: 14px;
     line-height: 1.6; /* Must match exactly */
+    
+    /* FIX 6: GPU Acceleration for text blocks to prevent repainting */
+    transform: translateZ(0); 
+    will-change: scroll-position;
 }
 
 /* Hide scrollbar for the number column but allow JS scrolling */
@@ -79,7 +102,7 @@ html {
 }
 
 /* =========================================
-   4. Floating Card Animations
+   4. Floating Card Animations (STABILIZED)
    ========================================= */
 @keyframes float {
     0% { transform: translateY(0px); }
@@ -88,8 +111,19 @@ html {
 }
 
 .floating-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    will-change: transform;
+    /* FIX 7: Hardware Acceleration Magic */
+    /* This forces the browser to treat the element as a 3D object,
+       preventing it from "snapping" to pixel grids (sub-pixel rendering) */
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    perspective: 1000px;
+    transform: translateZ(0);
+    
+    /* Original transitions preserved and enhanced */
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                box-shadow 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    
+    will-change: transform, box-shadow;
 }
 
 /* Only animate if user hasn't requested reduced motion */
@@ -102,9 +136,17 @@ html {
 /* Hover effect: Pause animation and lift */
 .floating-card:hover {
     animation-play-state: paused;
-    transform: translateY(-5px) scale(1.02);
+    
+    /* FIX 8: Smoother Hover State */
+    /* Adjusted translateY to match the "average" float position to minimize jumping */
+    transform: translateY(-8px) scale(1.02) translateZ(0); 
+    
     box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1), 
                 0 10px 20px -5px rgba(0, 0, 0, 0.04);
+                
+    /* FIX 9: Z-index boost */
+    /* Ensures the card doesn't clip underneath neighbors during scale */
+    z-index: 10; 
 }
 
 .dark .floating-card:hover {
@@ -119,6 +161,11 @@ html {
         linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
     background-size: 50px 50px;
+    
+    /* FIX 10: Background Attachment Fix */
+    /* Prevents background jitter during scroll on some mobile browsers */
+    background-attachment: fixed;
+    width: 100%;
 }
 
 .dark #home {
@@ -128,12 +175,12 @@ html {
 }
 
 /* =========================================
-   6. Animation Utilities
+   6. Animation Utilities (SMOOTHED)
    ========================================= */
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translate3d(0, 40px, 0);
+        transform: translate3d(0, 40px, 0); /* Used translate3d for GPU */
     }
     to {
         opacity: 1;
@@ -143,10 +190,14 @@ html {
 
 .animate-in {
     animation-fill-mode: both;
+    /* FIX 11: Render Hint */
+    will-change: opacity, transform;
 }
 
 .fade-in {
     animation-name: fadeInUp;
+    animation-duration: 0.8s; /* Slowed slightly for elegance */
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* Slow Ping for the Hero Status Dot */
@@ -159,6 +210,9 @@ html {
 
 .animate-ping-slow {
     animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    /* FIX 12: Isolation */
+    /* Creates a new stacking context so the ping doesn't repaint the hero image */
+    isolation: isolate; 
 }
 
 /* =========================================
@@ -166,6 +220,9 @@ html {
    ========================================= */
 #mobile-menu {
     transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    /* FIX 13: Prevent pixel snapping on height change */
+    transform: translateZ(0); 
+    overflow: hidden; /* Essential for max-height transitions */
 }
 
 /* =========================================
@@ -177,5 +234,11 @@ html {
     }
     #code-input, #line-numbers {
         font-size: 12px; /* Smaller text on mobile */
+    }
+    
+    /* FIX 14: Mobile Performance Safety */
+    /* Disable heavy blurs or shadows on low-end mobile if needed */
+    .floating-card {
+         will-change: transform; /* Hinting helps mobile browsers immensely */
     }
 }
