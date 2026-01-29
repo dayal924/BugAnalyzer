@@ -4,6 +4,10 @@
 :root {
     --primary: #6366f1;   /* Indigo 500 */
     --secondary: #a855f7; /* Purple 500 */
+    
+    /* THE ANCHOR: Fixed pixel height prevents sub-pixel drifting */
+    --editor-line-height: 24px; 
+    --editor-font-size: 14px;
 }
 
 html {
@@ -51,57 +55,67 @@ html {
 }
 
 /* =========================================
-   3. Code Editor & Line Numbers (FIXED)
+   3. Code Editor (LOCKED GRID SYSTEM)
    ========================================= */
-/* This ensures the numbers and code align perfectly */
+/* This section replaces the flexible layout with a rigid grid 
+   to stop the "dancing" effect during scrolling. */
+
 #code-input, #line-numbers {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    font-size: 14px;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace !important;
+    font-size: var(--editor-font-size) !important;
     
-    /* CRITICAL FIX: Force exact line-height to match. 
-       Tailwind 'leading-relaxed' is 1.625, causing drift. 
-       We force 1.5 to be safe and consistent. */
-    line-height: 1.5 !important; 
+    /* CRITICAL: Fixed pixel value ensures perfect synchronization */
+    line-height: var(--editor-line-height) !important;
     
-    /* CRITICAL FIX: Match padding exactly (32px = pt-8) */
-    padding-top: 2rem; 
-    padding-bottom: 2rem;
+    /* CRITICAL: Fixed padding prevents offset issues */
+    padding-top: 20px !important;
+    padding-bottom: 20px !important;
+    
+    margin: 0;
+    border: 0;
+    box-sizing: border-box;
 }
 
 /* Line Number Column */
 #line-numbers {
-    overflow: hidden; /* Hide scrollbar visually but allow JS sync */
+    width: 48px; /* Fixed width */
     text-align: right;
+    padding-right: 12px;
+    color: #94a3b8; /* Slate 400 */
+    border-right: 1px solid rgba(226, 232, 240, 0.5); /* subtle border */
+    overflow: hidden; /* Hide scrollbar completely */
     white-space: pre;
-    /* Ensure it doesn't shrink or grow */
-    flex-shrink: 0; 
+    user-select: none; /* Prevent selecting numbers */
+    flex-shrink: 0;
+    background-color: rgba(248, 250, 252, 0.5); /* Light bg */
+}
+
+.dark #line-numbers {
+    border-right: 1px solid rgba(30, 41, 59, 0.5);
+    background-color: rgba(2, 6, 23, 0.2); /* Dark bg */
+    color: #64748b;
 }
 
 /* Code Textarea */
 #code-input {
+    flex: 1; /* Take remaining width */
+    padding-left: 16px;
     white-space: pre;
+    overflow-y: scroll; /* Scrollbar always visible to prevent layout shift */
     overflow-x: auto;
-    overflow-y: scroll; /* Always show scrollbar to prevent layout shift */
+    resize: none;
+    outline: none;
+    background: transparent;
     tab-size: 4;
 }
 
-/* Remove default focus outline */
-#code-input:focus {
-    outline: none;
-}
-
 /* =========================================
-   4. Floating Card Animations
+   4. Floating Card Animations (Optimized)
    ========================================= */
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
-    100% { transform: translateY(0px); }
-}
-
 .floating-card {
+    /* Performance: Tell browser to render on GPU */
+    will-change: transform; 
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    will-change: transform;
 }
 
 /* Only animate if user hasn't requested reduced motion */
@@ -111,7 +125,12 @@ html {
     }
 }
 
-/* Hover effect: Pause animation and lift */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+    100% { transform: translateY(0px); }
+}
+
 .floating-card:hover {
     animation-play-state: paused;
     transform: translateY(-5px) scale(1.02);
@@ -124,7 +143,7 @@ html {
 }
 
 /* =========================================
-   5. Background Patterns (Tech Look)
+   5. Background Patterns
    ========================================= */
 #home {
     background-image: 
@@ -161,7 +180,6 @@ html {
     animation-name: fadeInUp;
 }
 
-/* Slow Ping for the Hero Status Dot */
 @keyframes ping-slow {
     75%, 100% {
         transform: scale(2);
@@ -174,7 +192,7 @@ html {
 }
 
 /* =========================================
-   7. Mobile Menu Transition
+   7. Mobile Menu
    ========================================= */
 #mobile-menu {
     transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
@@ -188,6 +206,6 @@ html {
         background-size: 30px 30px;
     }
     #code-input, #line-numbers {
-        font-size: 12px; /* Smaller text on mobile */
+        font-size: 12px !important; /* Smaller text on mobile */
     }
 }
