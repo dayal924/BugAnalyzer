@@ -1,28 +1,25 @@
 /**
  * =========================================================
- * BugSense – Frontend Controller Script
- * ---------------------------------------------------------
- * Responsibilities:
- * 1. Code editor behavior (line numbers, paste cleanup)
- * 2. File upload & language detection
- * 3. Backend communication (FastAPI on Vercel)
- * 4. Report rendering & risk visualization
- * 5. UI stability (no flicker / no layout shift)
+ * BugSense – Frontend Controller Script (FINAL)
+ * =========================================================
+ * ✔ Editor utilities (line numbers, paste cleanup)
+ * ✔ File upload & language detection
+ * ✔ Robust backend communication (Vercel-safe)
+ * ✔ Report rendering & risk visualization
+ * ✔ No flicker, no layout shift, no silent failures
  * =========================================================
  */
 
 document.addEventListener("DOMContentLoaded", () => {
 
   /* =======================================================
-   * CONFIGURATION (Vercel-safe)
+   * CONFIGURATION
    * ======================================================= */
-  const API_URL = "/api/analyze";      // Backend endpoint
-  const REPORT_ROUTE = "/analyze";     // Vercel route → analyze.html
+  const API_URL = "/api/analyze";   // FastAPI backend
+  const REPORT_ROUTE = "/analyze";  // Vercel route → analyze.html
 
   /* =======================================================
-   * SAFE COLOR MAP (Tailwind Static Classes Only)
-   * Tailwind CANNOT handle dynamic class names like:
-   * bg-${color}-500 → causes flicker
+   * SAFE STATIC COLOR MAP (Tailwind Compatible)
    * ======================================================= */
   const COLOR_MAP = {
     emerald: {
@@ -70,15 +67,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const riskBanner = document.getElementById("risk-banner");
 
   /* =======================================================
-   * PAGE 1 – CODE EDITOR & ANALYSIS
+   * PAGE 1 – EDITOR + BACKEND ANALYSIS
    * ======================================================= */
   if (codeInput) {
 
     console.log("BugSense: Editor Mode Active");
 
-    /* -------------------------------
-     * Line Number Synchronization
-     * ------------------------------- */
+    /* ---------- Line Numbers ---------- */
     const updateLineNumbers = () => {
       const count = codeInput.value.split("\n").length;
       lineNumbers.innerHTML = Array.from(
@@ -91,12 +86,9 @@ document.addEventListener("DOMContentLoaded", () => {
     codeInput.addEventListener("scroll", () => {
       lineNumbers.scrollTop = codeInput.scrollTop;
     });
-
     updateLineNumbers();
 
-    /* -------------------------------
-     * Smart Paste (Normalize Code)
-     * ------------------------------- */
+    /* ---------- Smart Paste ---------- */
     codeInput.addEventListener("paste", e => {
       e.preventDefault();
       let text = (e.clipboardData || window.clipboardData).getData("text");
@@ -105,9 +97,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const start = codeInput.selectionStart;
       const end = codeInput.selectionEnd;
       codeInput.value =
-        codeInput.value.substring(0, start) +
+        codeInput.value.slice(0, start) +
         text +
-        codeInput.value.substring(end);
+        codeInput.value.slice(end);
 
       codeInput.selectionStart = codeInput.selectionEnd = start + text.length;
       updateLineNumbers();
@@ -116,9 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => formatBadge?.classList.add("hidden"), 2000);
     });
 
-    /* -------------------------------
-     * File Upload & Auto Detection
-     * ------------------------------- */
+    /* ---------- File Upload ---------- */
     uploadBtn?.addEventListener("click", () => fileInput.click());
 
     fileInput?.addEventListener("change", e => {
@@ -140,13 +130,11 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.readAsText(file);
     });
 
-    /* -------------------------------
-     * ANALYZE BUTTON → BACKEND
-     * ------------------------------- */
+    /* ---------- ANALYZE BUTTON (FINAL FIX) ---------- */
     analyzeBtn?.addEventListener("click", async () => {
 
       if (!codeInput.value.trim()) {
-        alert("Please enter code first.");
+        alert("Please enter code first!");
         return;
       }
 
@@ -155,6 +143,8 @@ document.addEventListener("DOMContentLoaded", () => {
       analyzeSpinner.classList.remove("hidden");
 
       try {
+        console.log("Sending request to backend…");
+
         const res = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -164,15 +154,30 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         });
 
-        if (!res.ok) throw new Error("Backend error");
+        console.log("Response status:", res.status);
 
-        const result = await res.json();
-        localStorage.setItem("bugSenseResults", JSON.stringify(result));
+        const rawText = await res.text();
+        console.log("Raw response:", rawText);
 
-        setTimeout(() => window.location.href = REPORT_ROUTE, 300);
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error("Backend returned non-JSON response");
+        }
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Analysis failed");
+        }
+
+        // SUCCESS
+        localStorage.setItem("bugSenseResults", JSON.stringify(data));
+        window.location.href = REPORT_ROUTE;
 
       } catch (err) {
-        alert("Could not connect to backend.");
+        console.error("Analyze failed:", err);
+        alert("Analyze failed. Check console for details.");
+
         analyzeBtn.disabled = false;
         btnText.textContent = "Run Prediction Agent";
         analyzeSpinner.classList.add("hidden");
@@ -188,7 +193,10 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("BugSense: Report Mode Active");
 
     const raw = localStorage.getItem("bugSenseResults");
-    if (!raw) return window.location.href = "/";
+    if (!raw) {
+      window.location.href = "/";
+      return;
+    }
 
     const data = JSON.parse(raw);
     const score = data.risk_score || 0;
@@ -196,25 +204,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const theme = score < 30 ? "emerald" : score < 70 ? "orange" : "red";
     const colors = COLOR_MAP[theme];
 
-    /* -------------------------------
-     * Metrics
-     * ------------------------------- */
+    /* ---------- Metrics ---------- */
     document.getElementById("lang-display")?.textContent = data.language;
     document.getElementById("metric-loc")?.textContent = data.loc;
     document.getElementById("metric-complexity")?.textContent = data.complexity;
 
-    /* -------------------------------
-     * Risk Progress Bar
-     * ------------------------------- */
+    /* ---------- Progress Bar ---------- */
     const progress = document.getElementById("risk-progress");
     if (progress) {
       progress.className = `h-full transition-all duration-700 ${colors.progress}`;
-      requestAnimationFrame(() => progress.style.width = score + "%");
+      requestAnimationFrame(() => {
+        progress.style.width = score + "%";
+      });
     }
 
-    /* -------------------------------
-     * Issue Rendering
-     * ------------------------------- */
+    /* ---------- Issues ---------- */
     findingsContainer.innerHTML = "";
 
     if (!data.issues?.length) {
@@ -224,11 +228,12 @@ document.addEventListener("DOMContentLoaded", () => {
          </div>`;
     } else {
       data.issues.forEach(issue => {
-        const sev = issue.severity === "Critical"
-          ? COLOR_MAP.red
-          : issue.severity === "High"
-          ? COLOR_MAP.orange
-          : COLOR_MAP.blue;
+        const sev =
+          issue.severity === "Critical"
+            ? COLOR_MAP.red
+            : issue.severity === "High"
+            ? COLOR_MAP.orange
+            : COLOR_MAP.blue;
 
         findingsContainer.insertAdjacentHTML("beforeend", `
           <div class="p-6 border-b ${sev.border}">
@@ -247,9 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    /* -------------------------------
-     * Feather Icons (NO FLICKER)
-     * ------------------------------- */
+    /* ---------- Feather Icons ---------- */
     requestAnimationFrame(() => window.feather?.replace());
   }
 });
