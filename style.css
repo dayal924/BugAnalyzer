@@ -51,25 +51,37 @@ html {
 }
 
 /* =========================================
-   3. Code Editor & Line Numbers (CRITICAL)
+   3. Code Editor & Line Numbers (FIXED)
    ========================================= */
 /* This ensures the numbers and code align perfectly */
 #code-input, #line-numbers {
     font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
     font-size: 14px;
-    line-height: 1.6; /* Must match exactly */
+    
+    /* CRITICAL FIX: Force exact line-height to match. 
+       Tailwind 'leading-relaxed' is 1.625, causing drift. 
+       We force 1.5 to be safe and consistent. */
+    line-height: 1.5 !important; 
+    
+    /* CRITICAL FIX: Match padding exactly (32px = pt-8) */
+    padding-top: 2rem; 
+    padding-bottom: 2rem;
 }
 
-/* Hide scrollbar for the number column but allow JS scrolling */
-#line-numbers::-webkit-scrollbar {
-    display: none;
-}
+/* Line Number Column */
 #line-numbers {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    overflow: hidden; /* Hide scrollbar visually but allow JS sync */
+    text-align: right;
+    white-space: pre;
+    /* Ensure it doesn't shrink or grow */
+    flex-shrink: 0; 
 }
 
+/* Code Textarea */
 #code-input {
+    white-space: pre;
+    overflow-x: auto;
+    overflow-y: scroll; /* Always show scrollbar to prevent layout shift */
     tab-size: 4;
 }
 
