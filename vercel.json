@@ -9,16 +9,19 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "main.py"
+      "dest": "/main.py"
     },
     {
       "src": "/analyze",
-      "dest": "/analyze.html"
+      "dest": "/analysis.html"
     },
     {
       "src": "/",
       "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ]
 }
-
