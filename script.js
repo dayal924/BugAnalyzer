@@ -1,275 +1,273 @@
-/**
- * =========================================================
- * BugSense – Frontend Controller Script (FINAL + STABLE++)
- * =========================================================
- * Responsibilities:
- * 1. Code editor behavior (line numbers, paste cleanup)
- * 2. File upload & language detection
- * 3. Backend communication (FastAPI on Vercel)
- * 4. Report rendering & risk visualization
- * 5. UI stability (no flicker / no layout shift)
- * 6. NO silent JS failure (robust fetch handling)
- * 7. Extra UX feedback & debug helpers (ADDED)
- * =========================================================
- */
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // ==========================================
+    // CONFIGURATION
+    // ==========================================
+    const API_URL = '/api/analyze'; // Points to Vercel/Python backend (prefixed with /api)
+    const REPORT_PAGE = 'analyze.html'; // The page to show results
 
-document.addEventListener("DOMContentLoaded", () => {
+    // ==========================================
+    // DOM ELEMENTS (Home Page)
+    // ==========================================
+    const codeInput = document.getElementById('code-input');
+    const lineNumbers = document.getElementById('line-numbers');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const analyzeSpinner = document.getElementById('analyze-spinner');
+    const btnText = document.getElementById('btn-text'); // or analyze-text
+    const langSelect = document.getElementById('language-select');
+    const uploadBtn = document.getElementById('upload-btn');
+    const fileInput = document.getElementById('file-input');
+    const formatBadge = document.getElementById('format-badge');
 
-  console.log("[BugSense] script.js loaded");
+    // ==========================================
+    // DOM ELEMENTS (Report Page)
+    // ==========================================
+    // We check if these exist to know which page we are on
+    const riskBanner = document.getElementById('risk-banner');
 
-  /* =======================================================
-   * CONFIGURATION (DO NOT CHANGE)
-   * ======================================================= */
-  const API_URL = "/api/analyze";
-  const REPORT_ROUTE = "analyze.html";
+    // ##################################################################
+    // PAGE 1 LOGIC: EDITOR, UPLOAD & ANALYSIS (Home Page)
+    // ##################################################################
+    
+    if (codeInput) {
+        console.log("BugSense: Editor Mode Active");
 
-  /* =======================================================
-   * SAFE STATIC COLOR MAP (Tailwind Compatible)
-   * ======================================================= */
-  const COLOR_MAP = {
-    emerald: {
-      text: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-100 dark:bg-emerald-900/30",
-      border: "border-emerald-200 dark:border-emerald-800",
-      progress: "bg-emerald-500"
-    },
-    orange: {
-      text: "text-orange-600 dark:text-orange-400",
-      bg: "bg-orange-100 dark:bg-orange-900/30",
-      border: "border-orange-200 dark:border-orange-800",
-      progress: "bg-orange-500"
-    },
-    red: {
-      text: "text-red-600 dark:text-red-400",
-      bg: "bg-red-100 dark:bg-red-900/30",
-      border: "border-red-200 dark:border-red-800",
-      progress: "bg-red-500"
-    },
-    blue: {
-      text: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-100 dark:bg-blue-900/30",
-      border: "border-blue-200 dark:border-blue-800"
-    }
-  };
+        // --- 1. Line Number & Scroll Sync ---
+        const updateLineNumbers = () => {
+            const lines = codeInput.value.split('\n').length;
+            if(lineNumbers) lineNumbers.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('<br>');
+        };
 
-  /* =======================================================
-   * DOM ELEMENTS – HOME PAGE
-   * ======================================================= */
-  const codeInput = document.getElementById("code-input");
-  const lineNumbers = document.getElementById("line-numbers");
-  const analyzeBtn = document.getElementById("analyze-btn");
-  const analyzeSpinner = document.getElementById("analyze-spinner");
-  const btnText = document.getElementById("btn-text");
-  const langSelect = document.getElementById("language-select");
-  const uploadBtn = document.getElementById("upload-btn");
-  const fileInput = document.getElementById("file-input");
-  const formatBadge = document.getElementById("format-badge");
-
-  /* =======================================================
-   * DOM ELEMENTS – REPORT PAGE
-   * ======================================================= */
-  const findingsContainer = document.getElementById("findings-container");
-  const riskBanner = document.getElementById("risk-banner");
-  const resultsSection = document.getElementById("results-section");
-
-  /* =======================================================
-   * PAGE 1 – CODE EDITOR & ANALYSIS
-   * ======================================================= */
-  if (codeInput) {
-
-    console.log("[BugSense] Editor Mode Active");
-
-    /* ---------- Line Numbers ---------- */
-    const updateLineNumbers = () => {
-      const count = codeInput.value.split("\n").length;
-      lineNumbers.innerHTML = Array.from(
-        { length: count },
-        (_, i) => i + 1
-      ).join("<br>");
-    };
-
-    codeInput.addEventListener("input", updateLineNumbers);
-    codeInput.addEventListener("scroll", () => {
-      lineNumbers.scrollTop = codeInput.scrollTop;
-    });
-    updateLineNumbers();
-
-    /* ---------- Smart Paste ---------- */
-    codeInput.addEventListener("paste", e => {
-      e.preventDefault();
-      let text = (e.clipboardData || window.clipboardData).getData("text");
-      text = text.replace(/\r\n/g, "\n").replace(/\n\s*\n\s*\n/g, "\n\n");
-
-      const start = codeInput.selectionStart;
-      const end = codeInput.selectionEnd;
-      codeInput.value =
-        codeInput.value.slice(0, start) +
-        text +
-        codeInput.value.slice(end);
-
-      codeInput.selectionStart = codeInput.selectionEnd = start + text.length;
-      updateLineNumbers();
-
-      if (formatBadge) {
-        formatBadge.textContent = "Formatted";
-        formatBadge.classList.remove("hidden");
-        setTimeout(() => formatBadge.classList.add("hidden"), 2000);
-      }
-    });
-
-    /* ---------- File Upload ---------- */
-    uploadBtn?.addEventListener("click", () => {
-      console.log("[BugSense] Upload button clicked");
-      fileInput.click();
-    });
-
-    fileInput?.addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      console.log("[BugSense] File selected:", file.name);
-
-      const ext = file.name.split(".").pop().toLowerCase();
-      const map = { py: "python", js: "javascript", java: "java", c: "cpp", cpp: "cpp" };
-      if (langSelect && map[ext]) langSelect.value = map[ext];
-
-      const reader = new FileReader();
-      reader.onload = ev => {
-        codeInput.value = ev.target.result;
-        updateLineNumbers();
-        alert("File loaded successfully ✓");
-      };
-      reader.readAsText(file);
-    });
-
-    /* ---------- ANALYZE BUTTON (CRITICAL PART) ---------- */
-    let isAnalyzing = false;
-
-    analyzeBtn?.addEventListener("click", async () => {
-
-      if (isAnalyzing) return;
-
-      if (!codeInput.value.trim()) {
-        alert("Please enter code first.");
-        return;
-      }
-
-      isAnalyzing = true;
-      analyzeBtn.disabled = true;
-      btnText.textContent = "Analyzing…";
-      analyzeSpinner?.classList.remove("hidden");
-
-      try {
-        console.log("[BugSense] Sending request to backend…");
-
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: codeInput.value,
-            language: (langSelect && langSelect.value) ? langSelect.value : "python"
-          })
+        codeInput.addEventListener('scroll', () => {
+            if(lineNumbers) lineNumbers.scrollTop = codeInput.scrollTop;
         });
 
-        console.log("[BugSense] Response status:", res.status);
+        codeInput.addEventListener('input', updateLineNumbers);
+        // Initial call
+        updateLineNumbers();
 
-        const rawText = await res.text();
-        console.log("[BugSense] Raw response:", rawText);
+        // --- 2. Smart Paste (Clean up messy code) ---
+        codeInput.addEventListener('paste', (e) => {
+            e.preventDefault();
+            let text = (e.clipboardData || window.clipboardData).getData('text');
+            
+            // Normalize endings and remove excessive gaps
+            text = text.replace(/\r\n/g, "\n").replace(/\n\s*\n\s*\n/g, '\n\n');
+            
+            const start = codeInput.selectionStart;
+            const end = codeInput.selectionEnd;
+            const currentText = codeInput.value;
+            
+            codeInput.value = currentText.substring(0, start) + text + currentText.substring(end);
+            codeInput.selectionStart = codeInput.selectionEnd = start + text.length;
+            
+            updateLineNumbers();
 
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch {
-          throw new Error("Backend returned invalid JSON");
+            // Show "Formatted" Badge
+            if(formatBadge) {
+                formatBadge.classList.remove('hidden');
+                setTimeout(() => formatBadge.classList.add('hidden'), 3000);
+            }
+        });
+
+        // --- 3. File Upload & Auto-Detect ---
+        if (uploadBtn && fileInput) {
+            uploadBtn.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                // Auto-detect Language
+                const ext = file.name.split('.').pop().toLowerCase();
+                const langMap = {
+                    'py': 'python', 'js': 'javascript', 'ts': 'javascript',
+                    'java': 'java', 'c': 'cpp', 'cpp': 'cpp'
+                };
+                if (langMap[ext] && langSelect) langSelect.value = langMap[ext];
+
+                // Read File
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    codeInput.value = e.target.result;
+                    updateLineNumbers();
+                    if(formatBadge) {
+                        formatBadge.textContent = "File Loaded";
+                        formatBadge.classList.remove('hidden');
+                        setTimeout(() => formatBadge.classList.add('hidden'), 3000);
+                    }
+                };
+                reader.readAsText(file);
+            });
         }
 
-        if (!res.ok) {
-          throw new Error(data.detail || "Analysis failed");
+        // --- 4. THE ANALYZE BUTTON (Connect to Backend) ---
+        if (analyzeBtn) {
+            analyzeBtn.addEventListener('click', async () => {
+                const code = codeInput.value;
+                const lang = langSelect ? langSelect.value : 'auto';
+                
+                if (!code.trim()) {
+                    alert("Please enter code first!");
+                    return;
+                }
+
+                // UI Loading State
+                analyzeBtn.disabled = true;
+                if(btnText) btnText.textContent = "Processing...";
+                if(analyzeSpinner) analyzeSpinner.classList.remove('hidden');
+
+                try {
+                    console.log(`Sending to ${API_URL}...`);
+                    
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ code: code, language: lang })
+                    });
+
+                    if (!response.ok) throw new Error("Backend connection failed.");
+
+                    const result = await response.json();
+
+                    // SUCCESS: Save data and Redirect
+                    console.log("Analysis successful. Redirecting...");
+                    localStorage.setItem('bugSenseResults', JSON.stringify(result));
+                    
+                    // Small delay for UX
+                    setTimeout(() => {
+                        window.location.href = REPORT_PAGE;
+                    }, 500);
+
+                } catch (error) {
+                    console.error(error);
+                    alert("Error: Could not connect to the Prediction Agent. \n\nCheck if your backend is running.");
+                    
+                    // Reset UI
+                    analyzeBtn.disabled = false;
+                    if(btnText) btnText.textContent = "Run Prediction Agent";
+                    if(analyzeSpinner) analyzeSpinner.classList.add('hidden');
+                }
+            });
+        }
+    }
+
+    // ##################################################################
+    // PAGE 2 LOGIC: RENDER REPORT (Report/Analyze Page)
+    // ##################################################################
+    
+    // We detect if we are on the report page by checking for a specific element
+    if (document.getElementById('findings-container') || riskBanner) {
+        console.log("BugSense: Report Mode Active");
+
+        // 1. Get Data
+        const dataString = localStorage.getItem('bugSenseResults');
+        if(!dataString) {
+            // If no data, send them back home
+            window.location.href = 'index.html';
+            return;
         }
 
-        localStorage.setItem("bugSenseResults", JSON.stringify(data));
+        const data = JSON.parse(dataString);
 
-        if (resultsSection) {
-          resultsSection.classList.remove("hidden");
-          resultsSection.scrollIntoView({ behavior: "smooth" });
+        // 2. Populate Metrics
+        const elLang = document.getElementById('lang-display');
+        const elLoc = document.getElementById('loc-display') || document.getElementById('metric-loc');
+        const elComp = document.getElementById('complexity-display') || document.getElementById('metric-complexity');
+        const elCrit = document.getElementById('critical-count');
+
+        if(elLang) elLang.textContent = data.language || 'Unknown';
+        if(elLoc) elLoc.textContent = data.loc || 0;
+        if(elComp) elComp.textContent = data.complexity || 0;
+        
+        // 3. Risk Banner Logic
+        const score = data.risk_score || 0;
+        const badgeContainer = document.getElementById('risk-badge-container');
+        
+        // If using the simple layout
+        const riskLevelEl = document.getElementById('risk-level');
+        const riskPercentEl = document.getElementById('risk-percentage');
+        const riskProgressEl = document.getElementById('risk-progress');
+        const riskIconEl = document.getElementById('risk-icon');
+
+        // Determine Theme
+        let colorTheme = score < 30 ? 'emerald' : (score < 70 ? 'orange' : 'red');
+        let titleText = score < 30 ? 'Safe' : (score < 70 ? 'Warning' : 'Critical');
+        let iconName = score < 30 ? 'check-circle' : (score < 70 ? 'alert-triangle' : 'slash');
+
+        // Render Complex Banner (if elements exist)
+        if (riskLevelEl && riskPercentEl) {
+             riskLevelEl.textContent = titleText;
+             riskLevelEl.className = `text-3xl font-black italic tracking-tight text-${colorTheme}-600 dark:text-${colorTheme}-400`;
+             
+             riskPercentEl.textContent = score + "%";
+             riskPercentEl.className = `text-5xl font-black tracking-tighter text-${colorTheme}-600 dark:text-${colorTheme}-400`;
+
+             if(riskIconEl) {
+                 riskIconEl.className = `w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner bg-${colorTheme}-100 dark:bg-${colorTheme}-900/30 text-${colorTheme}-600 dark:text-${colorTheme}-400`;
+                 riskIconEl.innerHTML = `<i data-feather="${iconName}" class="w-8 h-8"></i>`;
+             }
+
+             if(riskProgressEl) {
+                 riskProgressEl.className = `h-full rounded-full transition-all duration-1000 w-0 bg-${colorTheme}-500`;
+                 setTimeout(() => riskProgressEl.style.width = score + "%", 200);
+             }
         }
 
-        btnText.textContent = "Analysis Complete ✓";
+        // Render Badge Container (from turn 12 design)
+        if (badgeContainer) {
+             badgeContainer.innerHTML = `
+                <div class="flex flex-col items-end">
+                    <div class="px-5 py-2 rounded-xl font-bold text-lg border bg-${colorTheme}-100 text-${colorTheme}-700 border-${colorTheme}-200 flex items-center gap-2 shadow-sm">
+                        <i data-feather="${iconName}" class="w-5 h-5"></i>
+                        ${titleText} Risk
+                    </div>
+                    <div class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">Score: ${score}/100</div>
+                </div>
+            `;
+        }
 
-      } catch (err) {
-        console.error("[BugSense] Analyze failed:", err);
-        alert("Analyze failed. Check console for details.");
-      } finally {
-        isAnalyzing = false;
-        analyzeBtn.disabled = false;
-        analyzeSpinner?.classList.add("hidden");
-      }
-    });
-  }
+        // 4. Render Issues List
+        const container = document.getElementById('findings-container') || document.getElementById('issues-list');
+        let critCount = 0;
 
-  /* =======================================================
-   * PAGE 2 – REPORT RENDERING
-   * ======================================================= */
-  if (findingsContainer || riskBanner) {
-
-    console.log("[BugSense] Report Mode Active");
-
-    const raw = localStorage.getItem("bugSenseResults");
-    if (!raw) {
-      console.warn("[BugSense] No analysis data found.");
-      return;
+        if (container) {
+            container.innerHTML = "";
+            if (!data.issues || data.issues.length === 0) {
+                container.innerHTML = `<div class="p-12 text-center text-slate-400">No vulnerabilities found. Code is clean.</div>`;
+            } else {
+                data.issues.forEach(issue => {
+                    if(issue.severity === 'Critical') critCount++;
+                    
+                    // Dynamic Colors for Issues
+                    let sevColor = issue.severity === 'Critical' ? 'red' : (issue.severity === 'High' ? 'orange' : 'blue');
+                    
+                    const html = `
+                        <div class="p-6 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                            <div class="flex items-start gap-4">
+                                <div class="mt-1 flex-shrink-0">
+                                    <span class="px-3 py-1 rounded-md text-xs font-bold border uppercase bg-${sevColor}-100 text-${sevColor}-700 border-${sevColor}-200 dark:bg-${sevColor}-900/30 dark:text-${sevColor}-400 dark:border-${sevColor}-800">
+                                        ${issue.severity}
+                                    </span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <h3 class="font-bold text-slate-800 dark:text-slate-200 text-lg">${issue.title}</h3>
+                                        <span class="text-sm font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Line ${issue.line}</span>
+                                    </div>
+                                    <p class="text-slate-600 dark:text-slate-400 leading-relaxed">${issue.description}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            }
+        }
+        
+        if(elCrit) elCrit.textContent = critCount;
+        
+        // Re-init Icons
+        if(typeof feather !== 'undefined') feather.replace();
     }
-
-    const data = JSON.parse(raw);
-    const score = data.risk_score || 0;
-
-    const theme = score < 30 ? "emerald" : score < 70 ? "orange" : "red";
-    const colors = COLOR_MAP[theme];
-
-    document.getElementById("metric-loc")?.textContent = data.loc || 0;
-    document.getElementById("metric-loops")?.textContent = data.loops || 0;
-    document.getElementById("metric-complexity")?.textContent = data.complexity || 0;
-
-    const progress = document.getElementById("risk-progress");
-    if (progress) {
-      progress.className = `h-full transition-all duration-700 ${colors.progress}`;
-      requestAnimationFrame(() => progress.style.width = score + "%");
-    }
-
-    findingsContainer.innerHTML = "";
-
-    if (!data.issues || data.issues.length === 0) {
-      findingsContainer.innerHTML = `
-        <div class="p-10 text-center text-slate-400">
-          No vulnerabilities found 🎉
-        </div>`;
-    } else {
-      data.issues.forEach(issue => {
-        const sev =
-          issue.severity === "Critical"
-            ? COLOR_MAP.red
-            : issue.severity === "High"
-            ? COLOR_MAP.orange
-            : COLOR_MAP.blue;
-
-        findingsContainer.insertAdjacentHTML("beforeend", `
-          <div class="p-6 border-b ${sev.border}">
-            <div class="flex justify-between mb-2">
-              <span class="px-3 py-1 rounded text-xs font-bold ${sev.bg} ${sev.text}">
-                ${issue.severity}
-              </span>
-              <span class="text-xs font-mono text-slate-400">
-                Line ${issue.line}
-              </span>
-            </div>
-            <h3 class="font-semibold text-lg">${issue.title}</h3>
-            <p class="text-slate-500">${issue.description}</p>
-          </div>
-        `);
-      });
-    }
-
-    requestAnimationFrame(() => window.feather?.replace());
-  }
-
 });
