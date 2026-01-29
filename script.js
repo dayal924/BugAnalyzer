@@ -11,8 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
-     * Stabilizer: Debounce function to prevent UI flickering on rapid input
-     * This stops the line numbers from jumping around when typing fast.
+     * Stabilizer: Debounce function 
+     * NOTE: Used for network requests, NOT for typing sync.
      */
     const debounce = (func, wait) => {
         let timeout;
@@ -28,16 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Stabilizer: Retry logic for serverless cold starts
-     * Vercel functions sometimes sleep; this wakes them up gently.
      */
     async function fetchWithRetry(url, options, retries = 2) {
         try {
             const response = await fetch(url, options);
             if (!response.ok) {
-                // If it's a 504 (Timeout) or 500, we might want to retry
                 if (retries > 0 && (response.status === 504 || response.status === 500)) {
                     console.log(`Retrying request... Attempts left: ${retries}`);
-                    await new Promise(res => setTimeout(res, 1000)); // Wait 1s
+                    await new Promise(res => setTimeout(res, 1000)); 
                     return fetchWithRetry(url, options, retries - 1);
                 }
                 throw new Error(`Server returned status: ${response.status}`);
@@ -54,9 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 1. DOM ELEMENTS (Safe Selectors)
+    // 1. DOM ELEMENTS
     // ==========================================
-    // Home Page Elements
     const codeInput = document.getElementById('code-input');
     const lineNumbers = document.getElementById('line-numbers');
     const analyzeBtn = document.getElementById('analyze-btn');
@@ -79,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("BugSense: Editor Mode Initialized");
 
         // --- A. Synchronized Scrolling (Stabilized) ---
-        // Uses requestAnimationFrame for 60fps scrolling performance
         let isScrolling = false;
         
         const syncScroll = () => {
@@ -94,19 +90,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.requestAnimationFrame(syncScroll);
                 isScrolling = true;
             }
-        }, { passive: true }); // Passive listener for better performance
+        }, { passive: true });
 
-        // --- B. Line Number Logic ---
+        // --- B. Line Number Logic (FLICKER FIX) ---
         const updateLineNumbers = () => {
+            // Count lines
             const lines = codeInput.value.split('\n').length;
-            // Only update DOM if line count changed to prevent layout thrashing
-            if (lineNumbers && lineNumbers.getAttribute('data-lines') != lines) {
+            
+            // Get current line count from DOM
+            const currentLineCount = lineNumbers.children.length || 0;
+
+            // OPTIMIZATION: Only touch the DOM if the number of lines actually changed.
+            // This prevents the "flash" of rebuilding the list on every character type.
+            if (lines !== currentLineCount) {
                 lineNumbers.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('<br>');
-                lineNumbers.setAttribute('data-lines', lines);
             }
         };
 
-        codeInput.addEventListener('input', debounce(updateLineNumbers, 10));
+        // *** CRITICAL FIX HERE ***
+        // Removed 'debounce'. We need 1:1 instant syncing when you press Enter.
+        codeInput.addEventListener('input', updateLineNumbers);
+        
+        // Also sync on window resize to ensure alignment
+        window.addEventListener('resize', updateLineNumbers);
+
         // Run once immediately
         updateLineNumbers();
 
@@ -115,26 +122,22 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             let text = (e.clipboardData || window.clipboardData).getData('text');
             
-            // Normalize: Windows (\r\n) -> Unix (\n), remove triple newlines
+            // Normalize: Windows (\r\n) -> Unix (\n)
             text = text.replace(/\r\n/g, "\n").replace(/\n\s*\n\s*\n/g, '\n\n');
             
             const start = codeInput.selectionStart;
             const end = codeInput.selectionEnd;
             const currentText = codeInput.value;
             
-            // Insert safely
             codeInput.value = currentText.substring(0, start) + text + currentText.substring(end);
-            
-            // Restore cursor position
             codeInput.selectionStart = codeInput.selectionEnd = start + text.length;
             
             updateLineNumbers();
 
-            // UI Feedback
             if(formatBadge) {
                 formatBadge.textContent = "Code Formatted";
                 formatBadge.classList.remove('hidden');
-                formatBadge.classList.add('animate-fade-in'); // Ensure CSS class exists
+                formatBadge.classList.add('animate-fade-in'); 
                 setTimeout(() => formatBadge.classList.add('hidden'), 3000);
             }
         });
@@ -147,13 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const file = e.target.files[0];
                 if (!file) return;
 
-                // Validation: Size Check
                 if (file.size > CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024) {
                     alert(`File is too large! Max size is ${CONFIG.MAX_FILE_SIZE_MB}MB.`);
                     return;
                 }
 
-                // Validation: Language Detection
                 const ext = file.name.split('.').pop().toLowerCase();
                 const langMap = {
                     'py': 'python', 'js': 'javascript', 'jsx': 'javascript',
@@ -166,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     langSelect.value = langMap[ext];
                 }
 
-                // Read File safely
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     codeInput.value = e.target.result;
@@ -184,26 +184,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 
                 reader.readAsText(file);
-                // Reset input so same file can be selected again if needed
                 fileInput.value = ''; 
             });
         }
 
-        // --- E. Analyze Button (The Core Logic) ---
+        // --- E. Analyze Button ---
         if (analyzeBtn) {
             analyzeBtn.addEventListener('click', async () => {
                 const code = codeInput.value;
                 const lang = langSelect ? langSelect.value : 'auto';
                 
                 if (!code.trim()) {
-                    // Shake animation or alert
                     if (codeInput) codeInput.classList.add('ring-2', 'ring-red-500');
                     setTimeout(() => codeInput.classList.remove('ring-2', 'ring-red-500'), 500);
                     alert("Please enter code or upload a file first.");
                     return;
                 }
 
-                // 1. Set Loading UI
                 analyzeBtn.disabled = true;
                 if(btnText) btnText.textContent = "Analyzing Code...";
                 if(analyzeSpinner) analyzeSpinner.classList.remove('hidden');
@@ -211,7 +208,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     console.log(`Connecting to prediction agent at ${CONFIG.API_URL}...`);
                     
-                    // 2. Network Request with Timeout & Retry
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
 
@@ -219,30 +215,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json' // Explicitly accept JSON
+                            'Accept': 'application/json'
                         },
                         body: JSON.stringify({ 
                             code: code, 
                             language: lang,
-                            timestamp: Date.now() // Prevent caching
+                            timestamp: Date.now() 
                         }),
                         signal: controller.signal
                     });
 
-                    clearTimeout(timeoutId); // Clear timeout if successful
+                    clearTimeout(timeoutId);
 
                     const result = await response.json();
-
-                    // 3. Success Handler
-                    console.log("Analysis Complete. Caching results...");
                     
-                    // Store detailed results
                     localStorage.setItem('bugSenseResults', JSON.stringify({
                         ...result,
                         timestamp: new Date().toISOString()
                     }));
                     
-                    // Redirect
                     if(btnText) btnText.textContent = "Redirecting...";
                     setTimeout(() => {
                         window.location.href = CONFIG.REPORT_PAGE;
@@ -260,7 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     alert(`Analysis Failed:\n${errorMessage}`);
                     
-                    // Reset UI
                     analyzeBtn.disabled = false;
                     if(btnText) btnText.textContent = "Run Prediction Agent";
                     if(analyzeSpinner) analyzeSpinner.classList.add('hidden');
@@ -270,14 +260,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 3. PAGE LOGIC: REPORT RENDERER (Report Page)
+    // 3. PAGE LOGIC: REPORT RENDERER
     // ==========================================
-    
-    // We check for findingsContainer or riskBanner to know we are on the results page
     if (findingsContainer || riskBanner) {
         console.log("BugSense: Report Mode Initialized");
 
-        // --- A. Data Retrieval & Validation ---
         const dataString = localStorage.getItem('bugSenseResults');
         
         if(!dataString) {
@@ -296,8 +283,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- B. Populate Summary Metrics ---
-        // Helper to safely set text content
         const setSafeText = (id, text) => {
             const el = document.getElementById(id);
             if(el) el.textContent = text;
@@ -307,17 +292,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setSafeText('loc-display', data.loc || data.lines_of_code || 'N/A');
         setSafeText('complexity-display', data.complexity || 'Low');
         
-        // Use either risk_score or score, default to 0
         const score = data.risk_score !== undefined ? data.risk_score : (data.score || 0);
 
-        // --- C. Visual Risk Engine ---
         const riskLevelEl = document.getElementById('risk-level');
         const riskPercentEl = document.getElementById('risk-percentage');
         const riskProgressEl = document.getElementById('risk-progress');
         const riskIconEl = document.getElementById('risk-icon');
         const badgeContainer = document.getElementById('risk-badge-container');
 
-        // Theme Calculation
         let colorTheme, titleText, iconName;
         
         if (score < 30) {
@@ -325,19 +307,17 @@ document.addEventListener('DOMContentLoaded', () => {
             titleText = 'Safe';
             iconName = 'check-circle';
         } else if (score < 70) {
-            colorTheme = 'orange'; // or amber
+            colorTheme = 'orange'; 
             titleText = 'Warning';
             iconName = 'alert-triangle';
         } else {
             colorTheme = 'red';
             titleText = 'Critical';
-            iconName = 'slash'; // or x-octagon
+            iconName = 'slash'; 
         }
 
-        // Render Main Header Stats
         if (riskLevelEl) {
              riskLevelEl.textContent = titleText;
-             // Remove old classes and add new ones carefully
              riskLevelEl.className = `text-3xl font-black italic tracking-tight text-${colorTheme}-600 dark:text-${colorTheme}-400`;
         }
 
@@ -353,13 +333,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (riskProgressEl) {
              riskProgressEl.className = `h-full rounded-full transition-all duration-1000 ease-out w-0 bg-${colorTheme}-500`;
-             // Slight delay to allow CSS transition to trigger visually
              setTimeout(() => {
                  riskProgressEl.style.width = `${score}%`;
              }, 300);
         }
 
-        // Render Alternative Badge (if layout requires it)
         if (badgeContainer) {
              badgeContainer.innerHTML = `
                 <div class="flex flex-col items-end animate-fade-in-up">
@@ -374,11 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        // --- D. Issues Renderer ---
         let critCount = 0;
 
         if (findingsContainer) {
-            findingsContainer.innerHTML = ""; // Clear loader
+            findingsContainer.innerHTML = ""; 
 
             if (!data.issues || data.issues.length === 0) {
                 findingsContainer.innerHTML = `
@@ -388,7 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p class="text-sm">Your code appears clean and secure.</p>
                     </div>`;
             } else {
-                // Sort issues: Critical -> High -> Medium -> Low
                 const severityOrder = { 'Critical': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
                 const sortedIssues = data.issues.sort((a, b) => 
                     (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0)
@@ -397,14 +373,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 sortedIssues.forEach((issue, index) => {
                     if(issue.severity === 'Critical') critCount++;
                     
-                    let sevColor = 'blue'; // Default Low/Info
+                    let sevColor = 'blue'; 
                     if (issue.severity === 'Critical') sevColor = 'red';
                     else if (issue.severity === 'High') sevColor = 'orange';
                     else if (issue.severity === 'Medium') sevColor = 'yellow';
 
-                    // Create HTML safely
                     const issueCard = document.createElement('div');
-                    // Add delay for staggering animation
                     issueCard.style.animationDelay = `${index * 100}ms`;
                     issueCard.className = `
                         p-6 border-b border-slate-100 dark:border-slate-800 
@@ -447,10 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Update Critical Count Badge
         setSafeText('critical-count', critCount);
         
-        // Re-initialize Feather Icons
         if(typeof feather !== 'undefined') {
             feather.replace();
         }
