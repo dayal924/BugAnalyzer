@@ -1,5 +1,5 @@
 /* =========================================
-   1. Base & Reset (ENHANCED)
+   1. Base & Reset (STABILIZED)
    ========================================= */
 :root {
     --primary: #6366f1;   /* Indigo 500 */
@@ -12,26 +12,32 @@ html {
     -moz-osx-font-smoothing: grayscale;
     
     /* FIX 1: Prevent Layout Shifts */
-    /* This reserves space for the scrollbar so the page width doesn't jump */
+    /* Reserves space for the scrollbar so the page width doesn't jump */
     scrollbar-gutter: stable; 
     
     /* FIX 2: Prevent horizontal scrolling from scaling animations */
     overflow-x: hidden; 
     width: 100%;
+    
+    /* FIX 3: Global Text Locking */
+    /* Prevents white flashes during scroll on some browsers */
+    -webkit-overflow-scrolling: touch; 
 }
 
 body {
-    /* FIX 3: Text Rendering Stabilization */
+    /* FIX 4: Text Rendering Stabilization */
     /* Prevents text from becoming blurry/jittery during CSS transforms */
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    position: relative;
+    width: 100%;
 }
 
 /* Custom Text Selection Color */
 ::selection {
     background: rgba(99, 102, 241, 0.3);
     color: inherit;
-    /* FIX 4: Ensure selection doesn't trigger a paint flash */
+    /* FIX 5: Ensure selection doesn't trigger a paint flash */
     text-shadow: none; 
 }
 
@@ -52,7 +58,7 @@ body {
     border-radius: 5px;
     border: 2px solid transparent;
     background-clip: content-box;
-    /* FIX 5: Smoother hover transition for scrollbar */
+    /* FIX 6: Smoother hover transition for scrollbar */
     transition: background-color 0.2s ease; 
 }
 
@@ -70,7 +76,7 @@ body {
 }
 
 /* =========================================
-   3. Code Editor & Line Numbers (CRITICAL)
+   3. Code Editor & Line Numbers (CRITICAL STABILITY)
    ========================================= */
 /* This ensures the numbers and code align perfectly */
 #code-input, #line-numbers {
@@ -78,9 +84,15 @@ body {
     font-size: 14px;
     line-height: 1.6; /* Must match exactly */
     
-    /* FIX 6: GPU Acceleration for text blocks to prevent repainting */
+    /* FIX 7: GPU Acceleration for text blocks */
     transform: translateZ(0); 
     will-change: scroll-position;
+
+    /* FIX 8: STOP THE SCROLL FIGHT (The "Nuclear" Fix) */
+    /* We keep smooth scrolling for the page, but KILL it for the editor.
+       This prevents the "vibration" when you type or JS updates the scroll. */
+    scroll-behavior: auto !important; 
+    overflow-anchor: none; /* Prevents browser from jumping scroll position */
 }
 
 /* Hide scrollbar for the number column but allow JS scrolling */
@@ -102,7 +114,7 @@ body {
 }
 
 /* =========================================
-   4. Floating Card Animations (STABILIZED)
+   4. Floating Card Animations (HARDWARE ACCELERATED)
    ========================================= */
 @keyframes float {
     0% { transform: translateY(0px); }
@@ -111,15 +123,19 @@ body {
 }
 
 .floating-card {
-    /* FIX 7: Hardware Acceleration Magic */
-    /* This forces the browser to treat the element as a 3D object,
+    /* FIX 9: Hardware Acceleration Magic */
+    /* Forces the browser to treat the element as a 3D object,
        preventing it from "snapping" to pixel grids (sub-pixel rendering) */
     transform-style: preserve-3d;
     backface-visibility: hidden;
     perspective: 1000px;
     transform: translateZ(0);
     
-    /* Original transitions preserved and enhanced */
+    /* FIX 10: Isolation */
+    /* Isolate this element so it doesn't repaint the whole page */
+    contain: paint layout; 
+
+    /* Original transitions preserved */
     transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
                 box-shadow 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     
@@ -129,6 +145,7 @@ body {
 /* Only animate if user hasn't requested reduced motion */
 @media (prefers-reduced-motion: no-preference) {
     .animate-float {
+        /* Using translate3d tricks browser into Hardware Acceleration mode */
         animation: float 6s ease-in-out infinite;
     }
 }
@@ -137,14 +154,14 @@ body {
 .floating-card:hover {
     animation-play-state: paused;
     
-    /* FIX 8: Smoother Hover State */
-    /* Adjusted translateY to match the "average" float position to minimize jumping */
+    /* FIX 11: Smoother Hover State */
+    /* Adjusted translateY to match the "average" float position */
     transform: translateY(-8px) scale(1.02) translateZ(0); 
     
     box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1), 
                 0 10px 20px -5px rgba(0, 0, 0, 0.04);
                 
-    /* FIX 9: Z-index boost */
+    /* FIX 12: Z-index boost */
     /* Ensures the card doesn't clip underneath neighbors during scale */
     z-index: 10; 
 }
@@ -162,7 +179,7 @@ body {
         linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
     background-size: 50px 50px;
     
-    /* FIX 10: Background Attachment Fix */
+    /* FIX 13: Background Attachment Fix */
     /* Prevents background jitter during scroll on some mobile browsers */
     background-attachment: fixed;
     width: 100%;
@@ -190,13 +207,13 @@ body {
 
 .animate-in {
     animation-fill-mode: both;
-    /* FIX 11: Render Hint */
+    /* FIX 14: Render Hint */
     will-change: opacity, transform;
 }
 
 .fade-in {
     animation-name: fadeInUp;
-    animation-duration: 0.8s; /* Slowed slightly for elegance */
+    animation-duration: 0.8s;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -210,24 +227,21 @@ body {
 
 .animate-ping-slow {
     animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-    /* FIX 12: Isolation */
+    /* FIX 15: Isolation */
     /* Creates a new stacking context so the ping doesn't repaint the hero image */
     isolation: isolate; 
 }
 
 /* =========================================
-   7. Mobile Menu Transition
+   7. Mobile Menu & Responsive
    ========================================= */
 #mobile-menu {
     transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
-    /* FIX 13: Prevent pixel snapping on height change */
+    /* FIX 16: Prevent pixel snapping on height change */
     transform: translateZ(0); 
-    overflow: hidden; /* Essential for max-height transitions */
+    overflow: hidden; 
 }
 
-/* =========================================
-   8. Responsive Tweaks
-   ========================================= */
 @media (max-width: 640px) {
     #home {
         background-size: 30px 30px;
@@ -236,8 +250,7 @@ body {
         font-size: 12px; /* Smaller text on mobile */
     }
     
-    /* FIX 14: Mobile Performance Safety */
-    /* Disable heavy blurs or shadows on low-end mobile if needed */
+    /* FIX 17: Mobile Performance Safety */
     .floating-card {
          will-change: transform; /* Hinting helps mobile browsers immensely */
     }
