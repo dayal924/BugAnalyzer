@@ -1,64 +1,157 @@
-# BugAnalyzer
+# 🐛 BugAnalyzer – AI‑Powered Bug Prediction System
 
-This repository contains a small frontend (static) and a FastAPI backend for analyzing code.
+BugAnalyzer is a **web‑based, AI‑inspired static code analysis tool** built during a hackathon. It analyzes source code and predicts potential bugs **before execution**, helping developers improve code quality early in the development cycle.
 
-Project structure
-- `frontend/` — static files (HTML, CSS, JS)
-- `backend/` — FastAPI app (`main.py`) and `requirements.txt`
+---
 
-Key changes for Vercel deployment
-- Backend is routed under `/api/analyze` in `vercel.json`.
-- Frontend calls the API at `/api/analyze`.
+## 🚀 Features
 
-Is `.venv` required?
-- No. `.venv` is a local virtual environment for development and should NOT be committed. `.gitignore` excludes it.
+* 📄 Paste or upload source code
+* 🌐 Multi‑language support (C/C++, Python, Java, JavaScript)
+* ⚡ Real‑time analysis
+* 📊 Bug risk score with confidence percentage
+* 🚨 Severity classification (Safe / Warning / Critical)
+* 🔍 Line‑wise detected issues
+* 🌙 Light & Dark mode UI
+* ☁️ Full‑stack deployment on Vercel
 
-Local development
-1. Create and activate venv
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+---
+
+## 🏗️ System Architecture
+
 ```
-2. Install backend deps and run server
-```bash
-pip install -r backend/requirements.txt
-pip install uvicorn
-uvicorn backend.main:app --reload --port 8000
-```
-3. Serve frontend locally (optional)
-```bash
-# from repo root
-python3 -m http.server 5500 --directory frontend
-```
-Open `http://localhost:5500/index.html` and ensure `script.js` points to `http://localhost:8000/api/analyze` if testing cross-origin.
-
-Deploying to Vercel
-
-Option A — GitHub (recommended)
-- Push this repo to GitHub.
-- In Vercel, import project from GitHub. Vercel will use `vercel.json` to build and route the app.
-
-Option B — Vercel CLI
-```bash
-npm i -g vercel
-vercel login
-vercel
+Frontend (HTML, CSS, JavaScript)
+        |
+        |  JSON Request (Fetch API)
+        ↓
+Backend (FastAPI – Python)
+        |
+        |  Rule‑Based Analysis Engine
+        ↓
+Risk Score + Bug Report (JSON)
+        ↓
+Frontend Visualization
 ```
 
-Post-deploy checks
-- Visit the deployed site root to confirm the frontend loads.
-- Test the analyze endpoint:
-```bash
-curl -X POST <YOUR_VERCEL_URL>/api/analyze -H "Content-Type: application/json" \
-  -d '{"code":"print(\"hi\")","language":"python"}'
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+
+* HTML5
+* CSS3 + Tailwind CSS
+* JavaScript
+
+### Backend
+
+* Python
+* FastAPI
+* Pydantic
+
+### Deployment & Tools
+
+* Vercel (Frontend + Backend)
+* GitHub
+* VS Code
+
+---
+
+## 🔄 Working Flow
+
+1. User opens BugAnalyzer web app
+2. Pastes or uploads source code
+3. Selects or auto‑detects programming language
+4. Clicks **Run Prediction Agent**
+5. Frontend sends code to backend via REST API
+6. Backend analyzes code using rule‑based logic
+7. Risk score and detected issues are generated
+8. Results are displayed on the frontend
+
+---
+
+## 📁 Project Structure
+
+```
+├── frontend/
+│   ├── index.html        # Landing page
+│   ├── analyze.html      # Results page
+│   ├── script.js         # Frontend logic
+│   └── style.css         # Styling & animations
+│
+├── backend/
+│   ├── main.py           # FastAPI backend
+│   └── requirements.txt  # Backend dependencies
+│
+├── vercel.json           # Vercel deployment config
+├── .venv/                # Python virtual environment
+└── README.md
 ```
 
-Recommended environment variables
-- This app does not require secrets by default. If you later add integrations (APIs, DBs), store secrets in Vercel Environment Variables (Project Settings).
-- Useful variables you might add later:
-  - `BUGANALYZER_SENTRY_DSN` — for Sentry error reporting
-  - `BUGANALYZER_API_KEY` — if you gate functionality
+---
 
-If you want, I can also:
-- Add a small GitHub Action to run basic checks before deploy.
-- Move the backend into `api/` directory (Vercel functions) instead of routing via `vercel.json`.
+## ⚙️ Local Setup
+
+### 1️⃣ Clone the Repository
+
+```bash
+git clone <your-repo-url>
+cd buganalyzer
+```
+
+### 2️⃣ Backend Setup
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+Backend will run at:
+
+```
+http://127.0.0.1:8000
+```
+
+### 3️⃣ Frontend Setup
+
+Open `frontend/index.html` directly in the browser
+
+---
+
+## ☁️ Deployment (Vercel)
+
+* Frontend deployed as static files
+* Backend deployed as serverless FastAPI function
+* Routing managed via `vercel.json`
+
+---
+
+## 👥 Team Members
+
+* **Lipsita Khadgarai** – Team Lead
+* **Dayal Kumar Padhy**
+* **Kamolika Patra**
+* **Ashish Nayak**
+
+---
+
+## 🌱 Future Enhancements
+
+* Machine learning‑based bug prediction
+* GitHub repository analysis
+* CI/CD pipeline integration
+* Security vulnerability detection
+* Support for more programming languages
+
+---
+
+## 📌 Conclusion
+
+BugAnalyzer demonstrates how **intelligent static analysis tools** can help developers shift from **bug fixing** to **bug prevention**, improving software reliability, productivity, and learning.
+
+---
+
+### ⭐ Built for Hackathon 2026
