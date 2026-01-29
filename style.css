@@ -1,0 +1,181 @@
+/* =========================================
+   1. Base & Reset
+   ========================================= */
+:root {
+    --primary: #6366f1;   /* Indigo 500 */
+    --secondary: #a855f7; /* Purple 500 */
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Text Selection Color */
+::selection {
+    background: rgba(99, 102, 241, 0.3);
+    color: inherit;
+}
+
+/* =========================================
+   2. Custom Scrollbar (Chrome/Edge/Safari)
+   ========================================= */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* Slate 300 */
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* Slate 400 */
+}
+
+/* Dark Mode Scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+    background: #334155; /* Slate 700 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569; /* Slate 600 */
+}
+
+/* =========================================
+   3. Code Editor & Line Numbers (CRITICAL)
+   ========================================= */
+/* This ensures the numbers and code align perfectly */
+#code-input, #line-numbers {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6; /* Must match exactly */
+}
+
+/* Hide scrollbar for the number column but allow JS scrolling */
+#line-numbers::-webkit-scrollbar {
+    display: none;
+}
+#line-numbers {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+#code-input {
+    tab-size: 4;
+}
+
+/* Remove default focus outline */
+#code-input:focus {
+    outline: none;
+}
+
+/* =========================================
+   4. Floating Card Animations
+   ========================================= */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+}
+
+.floating-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    will-change: transform;
+}
+
+/* Only animate if user hasn't requested reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+}
+
+/* Hover effect: Pause animation and lift */
+.floating-card:hover {
+    animation-play-state: paused;
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1), 
+                0 10px 20px -5px rgba(0, 0, 0, 0.04);
+}
+
+.dark .floating-card:hover {
+    box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================
+   5. Background Patterns (Tech Look)
+   ========================================= */
+#home {
+    background-image: 
+        linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
+
+.dark #home {
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+/* =========================================
+   6. Animation Utilities
+   ========================================= */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 40px, 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.animate-in {
+    animation-fill-mode: both;
+}
+
+.fade-in {
+    animation-name: fadeInUp;
+}
+
+/* Slow Ping for the Hero Status Dot */
+@keyframes ping-slow {
+    75%, 100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.animate-ping-slow {
+    animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* =========================================
+   7. Mobile Menu Transition
+   ========================================= */
+#mobile-menu {
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+/* =========================================
+   8. Responsive Tweaks
+   ========================================= */
+@media (max-width: 640px) {
+    #home {
+        background-size: 30px 30px;
+    }
+    #code-input, #line-numbers {
+        font-size: 12px; /* Smaller text on mobile */
+    }
+}

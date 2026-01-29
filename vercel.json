@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "pip install -r requirements.txt",
+  "outputDirectory": "frontend",
+  "routes": [
+    {
+      "src": "/api/.*",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/frontend/index.html"
+    }
+  ]
+}

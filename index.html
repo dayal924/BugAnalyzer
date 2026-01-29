@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="BugAnalyzer - AI Powered Bug Prediction Agent">
+    <title>BugAnalyzer – AI Bug Prediction Agent</title>
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐛%3C/text%3E%3C/svg%3E">
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { darkBg: '#020617' },
+                    fontFamily: { mono: ['Menlo', 'Monaco', 'Courier New', 'monospace'] },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-12px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-sans antialiased transition-colors duration-300 overflow-x-hidden selection:bg-indigo-500/30">
+    
+    <nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                        <i data-feather="shield" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight dark:text-white">BugAnalyzer</span>
+                </div>
+                
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="#home" class="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Home</a>
+                    <a href="analyze.html" class="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Analyze Code</a>
+                    <a href="#how-it-works" class="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">How It Works</a>
+                    <a href="#about" class="text-sm font-medium hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">About</a>
+                    
+                    <button type="button" id="theme-toggle" aria-label="Toggle Dark Mode" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:ring-2 ring-indigo-400 transition-all focus:outline-none">
+                        <i id="theme-toggle-dark-icon" data-feather="moon" class="hidden w-5 h-5"></i>
+                        <i id="theme-toggle-light-icon" data-feather="sun" class="hidden w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <button type="button" id="mobile-menu-btn" aria-label="Open Menu" class="md:hidden p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                    <i data-feather="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 space-y-2">
+            <a href="#home" class="block px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Home</a>
+            <a href="analyze.html" class="block px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Analyze Code</a>
+            <a href="#how-it-works" class="block px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">How It Works</a>
+            <a href="#about" class="block px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">About</a>
+        </div>
+    </nav>
+
+    <section id="home" class="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
+        <div class="absolute inset-0 overflow-hidden -z-10">
+            <div class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 dark:bg-indigo-600/20 rounded-full blur-[100px] animate-pulse-slow"></div>
+            <div class="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/10 dark:bg-purple-600/20 rounded-full blur-[100px] animate-pulse-slow"></div>
+        </div>
+        
+        <div class="floating-card absolute top-[15%] left-[5%] w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 shadow-xl hidden xl:block animate-float" style="animation-delay: 0s;">
+            <div class="flex items-center gap-2 mb-3">
+                <div class="flex gap-1.5">
+                    <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                    <div class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                    <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                </div>
+                <span class="text-[10px] font-mono text-slate-500 ml-2">bug_detected.py</span>
+            </div>
+            <div class="font-mono text-[10px] space-y-1.5 dark:text-slate-300">
+                <div class="text-purple-500">def <span class="text-blue-500">process_data</span>(input):</div>
+                <div class="pl-4">if input == <span class="text-orange-500">None</span>:</div>
+                <div class="pl-8 bg-red-500/10 border-l-2 border-red-500 text-red-500">return input.value <span class="opacity-70">// Error!</span></div>
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+                <span class="px-2 py-0.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-bold rounded">NullPointer</span>
+                <span class="text-[10px] text-slate-400">Probability: 92%</span>
+            </div>
+        </div>
+
+        <div class="floating-card absolute top-[18%] right-[5%] w-52 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 shadow-xl hidden xl:block animate-float" style="animation-delay: 2s;">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <div class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Complexity</div>
+                    <div class="text-3xl font-black text-slate-800 dark:text-white">High</div>
+                </div>
+                <div class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center">
+                    <i data-feather="activity" class="w-5 h-5 text-orange-500"></i>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
+                <div class="bg-gradient-to-r from-orange-400 to-red-500 h-full w-[78%]"></div>
+            </div>
+            <div class="mt-2 text-[10px] text-slate-400 text-right">Cyclomatic Score: 24</div>
+        </div>
+
+        <div class="floating-card absolute bottom-[20%] right-[8%] w-72 bg-slate-900 text-slate-300 rounded-xl p-4 shadow-2xl font-mono text-[10px] hidden lg:block animate-float" style="animation-delay: 1s;">
+            <div class="flex gap-1.5 mb-3">
+                <div class="w-2.5 h-2.5 rounded-full bg-slate-700"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-slate-700"></div>
+            </div>
+            <div class="space-y-1.5">
+                <div><span class="text-green-400">➜</span> <span class="text-blue-400">~</span> buganalyzer analyze --deep</div>
+                <div class="text-slate-500">Scanning dependency tree...</div>
+                <div class="text-slate-500">Parsing AST...</div>
+                <div><span class="text-yellow-400">⚠ Warning:</span> Buffer Overflow in line 84</div>
+                <div><span class="text-green-400">✓ Analysis complete</span> in 1.2s</div>
+            </div>
+        </div>
+
+        <div class="floating-card absolute bottom-[25%] left-[8%] w-auto bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 shadow-xl hidden lg:block animate-float" style="animation-delay: 3s;">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-lg">
+                    <i data-feather="shield" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                </div>
+                <div>
+                    <div class="text-xs font-bold dark:text-white">Security Scan</div>
+                    <div class="text-[10px] text-slate-500">Real-time protection active</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative z-10 max-w-4xl mx-auto px-4 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/50 mb-8 backdrop-blur-sm">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                <span class="text-sm font-medium text-slate-600 dark:text-slate-300">AI-Powered Bug Prediction</span>
+            </div>
+            
+            <h1 class="text-5xl sm:text-7xl font-extrabold tracking-tight mb-8 leading-tight dark:text-white">
+                Predict Bugs Before <br>
+                <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">Deployment</span>
+            </h1>
+            
+            <p class="text-lg sm:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+                The intelligent agent that analyzes source code, historical patterns, and commit history to identify vulnerabilities early. Ship reliable software, faster.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <a href="analyze.html" class="group relative px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-xl shadow-indigo-500/20 transition-all hover:-translate-y-1">
+                    <span class="flex items-center gap-2">
+                        Start Analysis <i data-feather="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+                    </span>
+                </a>
+                <a href="#how-it-works" class="px-8 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:-translate-y-1">
+                    How It Works
+                </a>
+            </div>
+            
+            <div class="mt-12 flex items-center justify-center gap-8 text-sm text-slate-500 dark:text-slate-400">
+                <div class="flex items-center gap-2">
+                    <i data-feather="check-circle" class="w-4 h-4 text-emerald-500"></i>
+                    <span>99% Accuracy</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-feather="zap" class="w-4 h-4 text-yellow-500"></i>
+                    <span>&lt;2s Analysis</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-feather="code" class="w-4 h-4 text-purple-500"></i>
+                    <span>Multi-Language</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="analyze" class="py-24 bg-slate-50 dark:bg-slate-950/50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-4 dark:text-white">Code Inspection Lab</h2>
+                <p class="text-slate-500 dark:text-slate-400">Paste your source code below for an instant risk assessment.</p>
+            </div>
+            
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300">
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center bg-slate-50 dark:bg-slate-950/80 gap-4">
+                    <div class="flex items-center gap-4 w-full sm:w-auto">
+                        <div class="flex gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-400 hover:bg-red-500 transition-colors"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-400 hover:bg-yellow-500 transition-colors"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-400 hover:bg-green-500 transition-colors"></div>
+                        </div>
+                        <div class="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+                        
+                        <label for="language-select" class="sr-only">Select Language</label>
+                        <select id="language-select" class="bg-transparent text-sm font-medium text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer">
+                            <option value="auto">Auto-detect Language</option>
+                            <option value="python">Python</option>
+                            <option value="java">Java</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="cpp">C/C++</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                        <button type="button" id="upload-btn" class="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
+                            <i data-feather="upload-cloud" class="w-3.5 h-3.5"></i> Upload File
+                        </button>
+                        <label for="file-input" class="sr-only">Upload Code File</label>
+                        <input type="file" id="file-input" class="hidden">
+                    </div>
+                </div>
+                
+                <div class="relative flex bg-slate-50 dark:bg-slate-950/50 font-mono text-sm">
+                    <div id="line-numbers" class="w-12 pt-8 pr-3 text-right text-slate-400 dark:text-slate-600 border-r border-slate-200 dark:border-slate-800 select-none overflow-y-auto bg-slate-100 dark:bg-slate-900/30 leading-relaxed">
+                        1
+                    </div>
+
+                    <textarea id="code-input" class="w-full h-[400px] p-8 pl-4 bg-transparent resize-none focus:outline-none dark:text-slate-300 placeholder-slate-400 leading-relaxed whitespace-pre" spellcheck="false" placeholder="Paste your source code here..."></textarea>
+                </div>
+
+                <div class="p-6 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                    <button type="button" id="analyze-btn" class="group flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                        <i data-feather="search" class="w-4 h-4 group-hover:rotate-90 transition-transform"></i>
+                        <span id="analyze-text">Run Prediction Agent</span>
+                        <div id="analyze-spinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    </button>
+                </div>
+            </div>
+
+            <div id="results-section" class="hidden mt-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                <div class="flex flex-col md:flex-row gap-8">
+                    
+                    <div class="flex-1 space-y-6">
+                        <div id="risk-banner" class="p-8 rounded-2xl border transition-all duration-500">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div class="flex items-center gap-6">
+                                    <div id="risk-icon" class="w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner transition-colors duration-300">
+                                        </div>
+                                    <div>
+                                        <p class="text-xs font-bold uppercase tracking-widest opacity-60">Bug Probability</p>
+                                        <h3 id="risk-level" class="text-3xl font-black italic tracking-tight">--</h3>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs opacity-60 mb-1">Confidence Score</p>
+                                    <p id="risk-percentage" class="text-5xl font-black tracking-tighter transition-all duration-1000">0%</p>
+                                </div>
+                            </div>
+                            <div class="mt-6 h-2 w-full bg-slate-900/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                <div id="risk-progress" class="h-full rounded-full transition-all duration-1000 w-0"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-6 opacity-60 flex items-center gap-2">
+                                <i data-feather="list" class="w-4 h-4"></i> Detected Patterns
+                            </h4>
+                            <div id="issues-list" class="space-y-4">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-80 space-y-6">
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 sticky top-24">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-6 opacity-60">Code Metrics</h4>
+                            <div class="space-y-6">
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="p-2 bg-indigo-500/10 rounded-lg"><i data-feather="file-text" class="w-4 h-4 text-indigo-500"></i></div>
+                                        <span class="text-sm font-medium">Lines</span>
+                                    </div>
+                                    <span id="metric-loc" class="text-lg font-bold">0</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="p-2 bg-purple-500/10 rounded-lg"><i data-feather="repeat" class="w-4 h-4 text-purple-500"></i></div>
+                                        <span class="text-sm font-medium">Loops</span>
+                                    </div>
+                                    <span id="metric-loops" class="text-lg font-bold">0</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="p-2 bg-pink-500/10 rounded-lg"><i data-feather="git-branch" class="w-4 h-4 text-pink-500"></i></div>
+                                        <span class="text-sm font-medium">Complexity</span>
+                                    </div>
+                                    <span id="metric-complexity" class="text-lg font-bold">0</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+                                <p class="text-xs text-slate-400">Analysis performed by local Rule Engine</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works" class="py-24 bg-white dark:bg-slate-950">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <div class="text-center mb-16">
+                <span class="text-indigo-600 dark:text-indigo-400 font-bold tracking-wider text-sm uppercase">Methodology</span>
+                <h2 class="text-3xl sm:text-4xl font-bold mt-2 dark:text-white">The Prediction Pipeline</h2>
+                <p class="text-slate-500 mt-4 max-w-2xl mx-auto">Our agent doesn't just "lint" code—it understands structural patterns that lead to failures.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="group p-8 rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:border-indigo-500/30 transition-all hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform">
+                        <i data-feather="code" class="text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    <h3 class="font-bold mb-3 text-lg dark:text-white">1. Ingestion</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">The system accepts source code files or snippets. It identifies the language syntax and project structure.</p>
+                </div>
+                
+                <div class="group p-8 rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:border-purple-500/30 transition-all hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform">
+                        <i data-feather="layers" class="text-purple-600 dark:text-purple-400"></i>
+                    </div>
+                    <h3 class="font-bold mb-3 text-lg dark:text-white">2. Tokenization</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Code is parsed into an Abstract Syntax Tree (AST). Variable flows and control structures are mapped.</p>
+                </div>
+                
+                <div class="group p-8 rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:border-pink-500/30 transition-all hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform">
+                        <i data-feather="cpu" class="text-pink-600 dark:text-pink-400"></i>
+                    </div>
+                    <h3 class="font-bold mb-3 text-lg dark:text-white">3. Inference</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">The pattern engine compares the AST against historical bug datasets and known vulnerability signatures.</p>
+                </div>
+                
+                <div class="group p-8 rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 hover:border-emerald-500/30 transition-all hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 transition-transform">
+                        <i data-feather="check-circle" class="text-emerald-600 dark:text-emerald-400"></i>
+                    </div>
+                    <h3 class="font-bold mb-3 text-lg dark:text-white">4. Reporting</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Actionable risk scores are generated. Critical issues are highlighted with line numbers and fix suggestions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="py-24 bg-slate-50 dark:bg-slate-900/30">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <div class="inline-block p-4 rounded-2xl bg-indigo-600/10 dark:bg-indigo-500/10 mb-8">
+                <i data-feather="users" class="w-8 h-8 text-indigo-600 dark:text-indigo-400"></i>
+            </div>
+            <h2 class="text-4xl font-bold mb-6 dark:text-white">Why BugAnalyzer?</h2>
+            <p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-8">
+                Software bugs cost the global economy billions annually. BugAnalyzer was built to shift the focus from "fixing" to "preventing". By leveraging historical bug patterns, we help developers write cleaner, safer code from day one.
+            </p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <span class="px-4 py-2 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300">Open Source</span>
+                <span class="px-4 py-2 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300">Static Analysis</span>
+                <span class="px-4 py-2 bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300">Hackathon Project</span>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-12 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <i data-feather="shield" class="w-4 h-4 text-white"></i>
+                </div>
+                <span class="font-bold text-lg dark:text-white">BugAnalyzer</span>
+            </div>
+            
+            <p class="text-sm text-slate-500">© 2026 BugAnalyzer AI. Built for the Hackathon.</p>
+            
+            <div class="flex gap-6">
+                <a href="#" class="text-slate-400 hover:text-indigo-600 transition-colors" aria-label="GitHub"><i data-feather="github" class="w-5 h-5"></i></a>
+                <a href="#" class="text-slate-400 hover:text-indigo-600 transition-colors" aria-label="Twitter"><i data-feather="twitter" class="w-5 h-5"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+    
+    <script>
+        // --- Dark Mode Logic ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+        
+        // Check local storage
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            lightIcon.classList.remove('hidden');
+        } else {
+            document.documentElement.classList.remove('dark');
+            darkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', function() {
+            darkIcon.classList.toggle('hidden');
+            lightIcon.classList.toggle('hidden');
+
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+        });
+
+        // --- Mobile Menu Logic ---
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+        }
+
+        // --- Init Icons ---
+        feather.replace();
+    </script>
+</body>
+</html>
