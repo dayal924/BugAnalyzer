@@ -1,28 +1,27 @@
 /**
  * =========================================================
- * BugSense – Frontend Controller Script
- * ---------------------------------------------------------
+ * BugSense – Frontend Controller Script (FINAL + STABLE)
+ * =========================================================
  * Responsibilities:
  * 1. Code editor behavior (line numbers, paste cleanup)
  * 2. File upload & language detection
  * 3. Backend communication (FastAPI on Vercel)
  * 4. Report rendering & risk visualization
  * 5. UI stability (no flicker / no layout shift)
+ * 6. NO silent JS failure (robust fetch handling)
  * =========================================================
  */
 
 document.addEventListener("DOMContentLoaded", () => {
 
   /* =======================================================
-   * CONFIGURATION (Vercel-safe)
+   * CONFIGURATION (DO NOT CHANGE)
    * ======================================================= */
-  const API_URL = "/api/analyze";      // Backend endpoint
-  const REPORT_ROUTE = "/analyze";     // Vercel route → analyze.html
+  const API_URL = "/api/analyze";   // FastAPI endpoint
+  const REPORT_ROUTE = "/analyze";  // Vercel route (NOT analyze.html)
 
   /* =======================================================
-   * SAFE COLOR MAP (Tailwind Static Classes Only)
-   * Tailwind CANNOT handle dynamic class names like:
-   * bg-${color}-500 → causes flicker
+   * SAFE STATIC COLOR MAP (Tailwind Compatible)
    * ======================================================= */
   const COLOR_MAP = {
     emerald: {
@@ -74,11 +73,9 @@ document.addEventListener("DOMContentLoaded", () => {
    * ======================================================= */
   if (codeInput) {
 
-    console.log("BugSense: Editor Mode Active");
+    console.log("[BugSense] Editor Mode Active");
 
-    /* -------------------------------
-     * Line Number Synchronization
-     * ------------------------------- */
+    /* ---------- Line Numbers ---------- */
     const updateLineNumbers = () => {
       const count = codeInput.value.split("\n").length;
       lineNumbers.innerHTML = Array.from(
@@ -91,12 +88,9 @@ document.addEventListener("DOMContentLoaded", () => {
     codeInput.addEventListener("scroll", () => {
       lineNumbers.scrollTop = codeInput.scrollTop;
     });
-
     updateLineNumbers();
 
-    /* -------------------------------
-     * Smart Paste (Normalize Code)
-     * ------------------------------- */
+    /* ---------- Smart Paste ---------- */
     codeInput.addEventListener("paste", e => {
       e.preventDefault();
       let text = (e.clipboardData || window.clipboardData).getData("text");
@@ -105,20 +99,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const start = codeInput.selectionStart;
       const end = codeInput.selectionEnd;
       codeInput.value =
-        codeInput.value.substring(0, start) +
+        codeInput.value.slice(0, start) +
         text +
-        codeInput.value.substring(end);
+        codeInput.value.slice(end);
 
       codeInput.selectionStart = codeInput.selectionEnd = start + text.length;
       updateLineNumbers();
 
-      formatBadge?.classList.remove("hidden");
-      setTimeout(() => formatBadge?.classList.add("hidden"), 2000);
+      if (formatBadge) {
+        formatBadge.classList.remove("hidden");
+        setTimeout(() => formatBadge.classList.add("hidden"), 2000);
+      }
     });
 
-    /* -------------------------------
-     * File Upload & Auto Detection
-     * ------------------------------- */
+    /* ---------- File Upload ---------- */
     uploadBtn?.addEventListener("click", () => fileInput.click());
 
     fileInput?.addEventListener("change", e => {
@@ -133,16 +127,16 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.onload = ev => {
         codeInput.value = ev.target.result;
         updateLineNumbers();
-        formatBadge.textContent = "File Loaded";
-        formatBadge.classList.remove("hidden");
-        setTimeout(() => formatBadge.classList.add("hidden"), 2000);
+        if (formatBadge) {
+          formatBadge.textContent = "File Loaded";
+          formatBadge.classList.remove("hidden");
+          setTimeout(() => formatBadge.classList.add("hidden"), 2000);
+        }
       };
       reader.readAsText(file);
     });
 
-    /* -------------------------------
-     * ANALYZE BUTTON → BACKEND
-     * ------------------------------- */
+    /* ---------- ANALYZE BUTTON (CRITICAL PART) ---------- */
     analyzeBtn?.addEventListener("click", async () => {
 
       if (!codeInput.value.trim()) {
@@ -152,30 +146,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
       analyzeBtn.disabled = true;
       btnText.textContent = "Analyzing…";
-      analyzeSpinner.classList.remove("hidden");
+      analyzeSpinner?.classList.remove("hidden");
 
       try {
+        console.log("[BugSense] Sending request to backend…");
+
         const res = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             code: codeInput.value,
-            language: langSelect?.value || "auto"
+            language: (langSelect && langSelect.value) ? langSelect.value : "python"
           })
         });
 
-        if (!res.ok) throw new Error("Backend error");
+        console.log("[BugSense] Response status:", res.status);
 
-        const result = await res.json();
-        localStorage.setItem("bugSenseResults", JSON.stringify(result));
+        // IMPORTANT: read text first (Vercel safety)
+        const rawText = await res.text();
+        console.log("[BugSense] Raw response:", rawText);
 
-        setTimeout(() => window.location.href = REPORT_ROUTE, 300);
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error("Backend returned non-JSON response");
+        }
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Analysis failed");
+        }
+
+        // SUCCESS
+        localStorage.setItem("bugSenseResults", JSON.stringify(data));
+        console.log("[BugSense] Analysis stored. Redirecting…");
+
+        window.location.href = REPORT_ROUTE;
 
       } catch (err) {
-        alert("Could not connect to backend.");
+        console.error("[BugSense] Analyze failed:", err);
+        alert("Analyze failed. Open console for details.");
+
         analyzeBtn.disabled = false;
         btnText.textContent = "Run Prediction Agent";
-        analyzeSpinner.classList.add("hidden");
+        analyzeSpinner?.classList.add("hidden");
       }
     });
   }
@@ -185,10 +199,14 @@ document.addEventListener("DOMContentLoaded", () => {
    * ======================================================= */
   if (findingsContainer || riskBanner) {
 
-    console.log("BugSense: Report Mode Active");
+    console.log("[BugSense] Report Mode Active");
 
     const raw = localStorage.getItem("bugSenseResults");
-    if (!raw) return window.location.href = "/";
+    if (!raw) {
+      console.warn("[BugSense] No analysis data found. Redirecting home.");
+      window.location.href = "/";
+      return;
+    }
 
     const data = JSON.parse(raw);
     const score = data.risk_score || 0;
@@ -196,39 +214,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const theme = score < 30 ? "emerald" : score < 70 ? "orange" : "red";
     const colors = COLOR_MAP[theme];
 
-    /* -------------------------------
-     * Metrics
-     * ------------------------------- */
-    document.getElementById("lang-display")?.textContent = data.language;
-    document.getElementById("metric-loc")?.textContent = data.loc;
-    document.getElementById("metric-complexity")?.textContent = data.complexity;
+    /* ---------- Metrics ---------- */
+    document.getElementById("lang-display")?.textContent = data.language || "Unknown";
+    document.getElementById("metric-loc")?.textContent = data.loc || 0;
+    document.getElementById("metric-complexity")?.textContent = data.complexity || 0;
 
-    /* -------------------------------
-     * Risk Progress Bar
-     * ------------------------------- */
+    /* ---------- Risk Progress Bar ---------- */
     const progress = document.getElementById("risk-progress");
     if (progress) {
       progress.className = `h-full transition-all duration-700 ${colors.progress}`;
-      requestAnimationFrame(() => progress.style.width = score + "%");
+      requestAnimationFrame(() => {
+        progress.style.width = score + "%";
+      });
     }
 
-    /* -------------------------------
-     * Issue Rendering
-     * ------------------------------- */
+    /* ---------- Issue List ---------- */
     findingsContainer.innerHTML = "";
 
-    if (!data.issues?.length) {
-      findingsContainer.innerHTML =
-        `<div class="p-10 text-center text-slate-400">
-           No vulnerabilities found 🎉
-         </div>`;
+    if (!data.issues || data.issues.length === 0) {
+      findingsContainer.innerHTML = `
+        <div class="p-10 text-center text-slate-400">
+          No vulnerabilities found 🎉
+        </div>`;
     } else {
       data.issues.forEach(issue => {
-        const sev = issue.severity === "Critical"
-          ? COLOR_MAP.red
-          : issue.severity === "High"
-          ? COLOR_MAP.orange
-          : COLOR_MAP.blue;
+        const sev =
+          issue.severity === "Critical"
+            ? COLOR_MAP.red
+            : issue.severity === "High"
+            ? COLOR_MAP.orange
+            : COLOR_MAP.blue;
 
         findingsContainer.insertAdjacentHTML("beforeend", `
           <div class="p-6 border-b ${sev.border}">
@@ -247,10 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    /* -------------------------------
-     * Feather Icons (NO FLICKER)
-     * ------------------------------- */
+    /* ---------- Feather Icons (Stable) ---------- */
     requestAnimationFrame(() => window.feather?.replace());
   }
 });
-
