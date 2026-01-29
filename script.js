@@ -1,6 +1,6 @@
 /**
  * =========================================================
- * BugSense – Frontend Controller Script (FINAL + STABLE)
+ * BugSense – Frontend Controller Script (FINAL + STABLE++)
  * =========================================================
  * Responsibilities:
  * 1. Code editor behavior (line numbers, paste cleanup)
@@ -9,16 +9,19 @@
  * 4. Report rendering & risk visualization
  * 5. UI stability (no flicker / no layout shift)
  * 6. NO silent JS failure (robust fetch handling)
+ * 7. Extra UX feedback & debug helpers (ADDED)
  * =========================================================
  */
 
 document.addEventListener("DOMContentLoaded", () => {
 
+  console.log("[BugSense] script.js loaded");
+
   /* =======================================================
    * CONFIGURATION (DO NOT CHANGE)
    * ======================================================= */
-  const API_URL = "/api/analyze";   // FastAPI endpoint
-  const REPORT_ROUTE = "/analyze";  // Vercel route (NOT analyze.html)
+  const API_URL = "/api/analyze";
+  const REPORT_ROUTE = "/analyze";
 
   /* =======================================================
    * SAFE STATIC COLOR MAP (Tailwind Compatible)
@@ -67,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * ======================================================= */
   const findingsContainer = document.getElementById("findings-container");
   const riskBanner = document.getElementById("risk-banner");
+  const resultsSection = document.getElementById("results-section");
 
   /* =======================================================
    * PAGE 1 – CODE EDITOR & ANALYSIS
@@ -107,17 +111,23 @@ document.addEventListener("DOMContentLoaded", () => {
       updateLineNumbers();
 
       if (formatBadge) {
+        formatBadge.textContent = "Formatted";
         formatBadge.classList.remove("hidden");
         setTimeout(() => formatBadge.classList.add("hidden"), 2000);
       }
     });
 
     /* ---------- File Upload ---------- */
-    uploadBtn?.addEventListener("click", () => fileInput.click());
+    uploadBtn?.addEventListener("click", () => {
+      console.log("[BugSense] Upload button clicked");
+      fileInput.click();
+    });
 
     fileInput?.addEventListener("change", e => {
       const file = e.target.files[0];
       if (!file) return;
+
+      console.log("[BugSense] File selected:", file.name);
 
       const ext = file.name.split(".").pop().toLowerCase();
       const map = { py: "python", js: "javascript", java: "java", c: "cpp", cpp: "cpp" };
@@ -127,23 +137,24 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.onload = ev => {
         codeInput.value = ev.target.result;
         updateLineNumbers();
-        if (formatBadge) {
-          formatBadge.textContent = "File Loaded";
-          formatBadge.classList.remove("hidden");
-          setTimeout(() => formatBadge.classList.add("hidden"), 2000);
-        }
+        alert("File loaded successfully ✓");
       };
       reader.readAsText(file);
     });
 
     /* ---------- ANALYZE BUTTON (CRITICAL PART) ---------- */
+    let isAnalyzing = false;
+
     analyzeBtn?.addEventListener("click", async () => {
+
+      if (isAnalyzing) return;
 
       if (!codeInput.value.trim()) {
         alert("Please enter code first.");
         return;
       }
 
+      isAnalyzing = true;
       analyzeBtn.disabled = true;
       btnText.textContent = "Analyzing…";
       analyzeSpinner?.classList.remove("hidden");
@@ -162,7 +173,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         console.log("[BugSense] Response status:", res.status);
 
-        // IMPORTANT: read text first (Vercel safety)
         const rawText = await res.text();
         console.log("[BugSense] Raw response:", rawText);
 
@@ -170,25 +180,28 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           data = JSON.parse(rawText);
         } catch {
-          throw new Error("Backend returned non-JSON response");
+          throw new Error("Backend returned invalid JSON");
         }
 
         if (!res.ok) {
           throw new Error(data.detail || "Analysis failed");
         }
 
-        // SUCCESS
         localStorage.setItem("bugSenseResults", JSON.stringify(data));
-        console.log("[BugSense] Analysis stored. Redirecting…");
 
-        window.location.href = REPORT_ROUTE;
+        if (resultsSection) {
+          resultsSection.classList.remove("hidden");
+          resultsSection.scrollIntoView({ behavior: "smooth" });
+        }
+
+        btnText.textContent = "Analysis Complete ✓";
 
       } catch (err) {
         console.error("[BugSense] Analyze failed:", err);
-        alert("Analyze failed. Open console for details.");
-
+        alert("Analyze failed. Check console for details.");
+      } finally {
+        isAnalyzing = false;
         analyzeBtn.disabled = false;
-        btnText.textContent = "Run Prediction Agent";
         analyzeSpinner?.classList.add("hidden");
       }
     });
@@ -203,8 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const raw = localStorage.getItem("bugSenseResults");
     if (!raw) {
-      console.warn("[BugSense] No analysis data found. Redirecting home.");
-      window.location.href = "/";
+      console.warn("[BugSense] No analysis data found.");
       return;
     }
 
@@ -214,21 +226,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const theme = score < 30 ? "emerald" : score < 70 ? "orange" : "red";
     const colors = COLOR_MAP[theme];
 
-    /* ---------- Metrics ---------- */
-    document.getElementById("lang-display")?.textContent = data.language || "Unknown";
     document.getElementById("metric-loc")?.textContent = data.loc || 0;
+    document.getElementById("metric-loops")?.textContent = data.loops || 0;
     document.getElementById("metric-complexity")?.textContent = data.complexity || 0;
 
-    /* ---------- Risk Progress Bar ---------- */
     const progress = document.getElementById("risk-progress");
     if (progress) {
       progress.className = `h-full transition-all duration-700 ${colors.progress}`;
-      requestAnimationFrame(() => {
-        progress.style.width = score + "%";
-      });
+      requestAnimationFrame(() => progress.style.width = score + "%");
     }
 
-    /* ---------- Issue List ---------- */
     findingsContainer.innerHTML = "";
 
     if (!data.issues || data.issues.length === 0) {
@@ -262,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    /* ---------- Feather Icons (Stable) ---------- */
     requestAnimationFrame(() => window.feather?.replace());
   }
+
 });
